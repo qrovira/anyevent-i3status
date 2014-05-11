@@ -199,7 +199,7 @@ providing ad-hoc plugins directly on the configuration:
     [
         'net',
         'disk' => { path => '/' },
-        sub { push @$_[1], { full_text => time }; }
+        myplug => sub { push @$_[1], { full_text => time }; }
     ]
 
 =head1 TODO
