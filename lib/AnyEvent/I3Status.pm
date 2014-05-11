@@ -1,12 +1,18 @@
 package AnyEvent::I3Status;
 
-use 5.006;
+use 5.018;
 use strict;
-use warnings FATAL => 'all';
+use warnings;
+
+use base 'Object::Event';
+
+use Module::Pluggable require => 1;
+use AnyEvent;
+use AnyEvent::Handle;
 
 =head1 NAME
 
-AnyEvent::I3Status - The great new AnyEvent::I3Status!
+AnyEvent::I3Status - Generate a JSON stream for i3bar using plugins
 
 =head1 VERSION
 
@@ -16,38 +22,213 @@ Version 0.01
 
 our $VERSION = '0.01';
 
-
 =head1 SYNOPSIS
 
-Quick summary of what the module does.
+This module bundles a simple dummy script ready to be used for i3bar
+with the current set of plugins.
 
-Perhaps a little code snippet.
+    $ i3status.pl -c <config_file>
+
+By default, the tool will try to load the configuration via C<do(...)>, which
+must return a hash of options to use, including the plugin list:
+
+    # Example file ~/.i3status.pl
+    [ 'apm', 'net', 'clock' ]
+
+
+    # Another example
+    {
+        interval => 0.5,
+        plugins  => [ qw/ apm net clock / ]
+    }
+
+See L</CONFIG> below for some more examples, and how to use ad-hoc plugins.
+
+If you want to use this module from your own perl program:
 
     use AnyEvent::I3Status;
 
-    my $foo = AnyEvent::I3Status->new();
-    ...
+    AnyEvent::I3Status->new(
+        interval => 1,
+        plugins => [ qw/ net apm clock / ],
 
-=head1 EXPORT
+        # Planned, not yet supported, for multi-bar & click-handling
+        output => \*STDOUT,
+        input => \*STDIN
+    );
 
-A list of functions that can be exported.  You can delete this section
-if you don't export anything, such as for a purely object-oriented module.
+    AnyEvent::condvar->recv;
 
 =head1 SUBROUTINES/METHODS
 
-=head2 function1
+=head2 new( %config )
+
+Create a new AnyEvent::I3Status handler.
+
+Options:
+
+=over 4
+
+=item interval
+
+The interval, in seconds, on which the status heartbeat will be triggered.
+
+=item plugins
+
+List of plugins to enable, optionally followed by a reference to the plugin
+options.
+
+See L<AnyEvent::I3Status::Plugins> for a list of available plugins.
+
+=item output
+
+File descriptor to write the status output to. Unless specified, C<STDOUT> will
+be used.
+
+=item input
+
+File descriptor to listen to for events coming from the i3wm. Unless specified,
+C<STDIN> will be used.
+
+=back
 
 =cut
 
-sub function1 {
+
+
+sub new {
+    my ($class, %options) = @_;
+
+    my $self = {
+        output => AnyEvent::Handle->new( fh => \*STDOUT ),
+        interval => $options{interval} // 1,
+    };
+
+    bless $self, ref($class) || $class;
+
+    $self->_load_plugins( $options{plugins} // [] );
+
+    # Set up start/stop signals on USR1.. we might not want to get a TERM/CONT
+    $self->{sig_stop} = AnyEvent->signal(
+        signal => "USR1",
+        cb     => sub { undef $self->{beat_cv}; }
+    );
+    $self->{sig_cont} = AnyEvent->signal(
+        signal => "USR2",
+        cb     => sub { $self->_setup_heartbeat; }
+    );
+
+    # Print initialization of the i3bar JSON stream
+    $self->{output}->push_write(
+        json => {
+            version => 1,
+            click_events => 1, # Not supported yet
+            stop_signal => 10, # We want to stop via SIGUSR1
+            cont_signal => 12  # And resume via SIGUSR2
+        }
+    );
+    $self->{output}->push_write( "\012[" );
+    $self->{output}->push_write( "\012" );
+
+    # Finally, start things up!
+    $self->_setup_heartbeat;
+
+    return $self;
 }
 
-=head2 function2
 
-=cut
+#
+# Privates
+#
 
-sub function2 {
+
+# Ugly way to be able to address plugins by last module name part, also
+# using lowercase.. :/
+our %PLUGINS = map {
+    reverse(/^(.+::([^:]+))$/),
+    $_     => $_,
+    lc($2) => $_,
+} __PACKAGE__->plugins;
+
+sub _load_plugins {
+    my ($self, $plugins) = @_;
+
+    my $i = 0;
+    while( my $plugin = shift @$plugins ) {
+        my $opts = ref($plugins->[0]) ? shift @$plugins : {};
+
+        if( exists $PLUGINS{$plugin} ) {
+            $PLUGINS{$plugin}->register( $self, prio => 100 - $i++, %$opts );
+        }
+        elsif( ref $opts eq 'CODE' ) {
+            $self->reg_cb( heartbeat => (100 - $i++) => $opts );
+        }
+    }
+
 }
+
+# Enable the heartbeat (for init and stop/resume)
+sub _setup_heartbeat {
+    my $self = shift;
+
+    return if $self->{beat_cv};
+
+    $self->{beat_cv} = AnyEvent->timer(
+        interval => $self->{interval},
+        cb => sub {
+            my $status = [];
+            $self->event('heartbeat', $status);
+
+            # Write status line to stdout
+            $self->{output}->push_write(",") unless $self->{num_statuses}++ == 0;
+            $self->{output}->push_write( json => $status );
+            $self->{output}->push_write("\012");
+        }
+    );
+}
+
+
+
+=head1 CONFIG
+
+The config file is loaded via C<do(...)>, which means it gets executed as a
+perl script. While this is a bit stupid, it allows doing some fancy stuff, like
+providing ad-hoc plugins directly on the configuration:
+
+    # Ad-hoc plugin example:
+    [
+        'net',
+        'disk' => { path => '/' },
+        sub { push @$_[1], { full_text => time }; }
+    ]
+
+=head1 TODO
+
+=over 4
+
+=item Tests, tests, tests
+
+=item Add click handling
+
+=item Support multi-bar / multi-handler setups
+
+=item Allow plugins to do status update bursts (e.g: cache statuses, change only 1 via own timer)
+
+=item Turn plugins into less horrible messes
+
+=item Plugin: add sys monitor (or extend 'load' to allow free mem, i/o load, etc.)
+
+=item Plugin: improve net to show up/down rates
+
+=item Plugin: add run_watch, similar to i3status one
+
+=item Plugin: add network context checker (e.g: detect LANs like work/home/etc.)
+
+=item Plugin: add VPN / ssh link checkers
+
+=item Plugin: add RandR plugin, with click handling to switch modes
+
+=back
 
 =head1 AUTHOR
 
@@ -58,9 +239,6 @@ Quim Rovira, C<< <met at cpan.org> >>
 Please report any bugs or feature requests to C<bug-anyevent-i3status at rt.cpan.org>, or through
 the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=AnyEvent-I3Status>.  I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
-
-
-
 
 =head1 SUPPORT
 
@@ -77,23 +255,11 @@ You can also look for information at:
 
 L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=AnyEvent-I3Status>
 
-=item * AnnoCPAN: Annotated CPAN documentation
+=item * GitHub repository
 
-L<http://annocpan.org/dist/AnyEvent-I3Status>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/AnyEvent-I3Status>
-
-=item * Search CPAN
-
-L<http://search.cpan.org/dist/AnyEvent-I3Status/>
+L<http://github.com/qrovira/anyevent-i3status/>
 
 =back
-
-
-=head1 ACKNOWLEDGEMENTS
-
 
 =head1 LICENSE AND COPYRIGHT
 
@@ -104,37 +270,6 @@ under the terms of the the Artistic License (2.0). You may obtain a
 copy of the full license at:
 
 L<http://www.perlfoundation.org/artistic_license_2_0>
-
-Any use, modification, and distribution of the Standard or Modified
-Versions is governed by this Artistic License. By using, modifying or
-distributing the Package, you accept this license. Do not use, modify,
-or distribute the Package, if you do not accept this license.
-
-If your Modified Version has been derived from a Modified Version made
-by someone other than you, you are nevertheless required to ensure that
-your Modified Version complies with the requirements of this license.
-
-This license does not grant you the right to use any trademark, service
-mark, tradename, or logo of the Copyright Holder.
-
-This license includes the non-exclusive, worldwide, free-of-charge
-patent license to make, have made, use, offer to sell, sell, import and
-otherwise transfer the Package with respect to any patent claims
-licensable by the Copyright Holder that are necessarily infringed by the
-Package. If you institute patent litigation (including a cross-claim or
-counterclaim) against any party alleging that the Package constitutes
-direct or contributory patent infringement, then this Artistic License
-to you shall terminate on the date that such litigation is filed.
-
-Disclaimer of Warranty: THE PACKAGE IS PROVIDED BY THE COPYRIGHT HOLDER
-AND CONTRIBUTORS "AS IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES.
-THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-PURPOSE, OR NON-INFRINGEMENT ARE DISCLAIMED TO THE EXTENT PERMITTED BY
-YOUR LOCAL LAW. UNLESS REQUIRED BY LAW, NO COPYRIGHT HOLDER OR
-CONTRIBUTOR WILL BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR
-CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THE PACKAGE,
-EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 
 =cut
 

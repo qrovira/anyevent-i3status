@@ -1,6 +1,6 @@
 # NAME
 
-AnyEvent::I3Status - The great new AnyEvent::I3Status!
+AnyEvent::I3Status - Generate a JSON stream for i3bar using plugins
 
 # VERSION
 
@@ -8,25 +8,96 @@ Version 0.01
 
 # SYNOPSIS
 
-Quick summary of what the module does.
+This module bundles a simple dummy script ready to be used for i3bar
+with the current set of plugins.
 
-Perhaps a little code snippet.
+    $ i3status.pl -c <config_file>
+
+By default, the tool will try to load the configuration via `do(...)`, which
+must return a hash of options to use, including the plugin list:
+
+    # Example file ~/.i3status.pl
+    [ 'apm', 'net', 'clock' ]
+
+
+    # Another example
+    {
+        interval => 0.5,
+        plugins  => [ qw/ apm net clock / ]
+    }
+
+See ["CONFIG"](#config) below for some more examples, and how to use ad-hoc plugins.
+
+If you want to use this module from your own perl program:
 
     use AnyEvent::I3Status;
 
-    my $foo = AnyEvent::I3Status->new();
-    ...
+    AnyEvent::I3Status->new(
+        interval => 1,
+        plugins => [ qw/ net apm clock / ],
 
-# EXPORT
+        # Planned, not yet supported, for multi-bar & click-handling
+        output => \*STDOUT,
+        input => \*STDIN
+    );
 
-A list of functions that can be exported.  You can delete this section
-if you don't export anything, such as for a purely object-oriented module.
+    AnyEvent::condvar->recv;
 
 # SUBROUTINES/METHODS
 
-## function1
+## new( %config )
 
-## function2
+Create a new AnyEvent::I3Status handler.
+
+Options:
+
+- interval
+
+    The interval, in seconds, on which the status heartbeat will be triggered.
+
+- plugins
+
+    List of plugins to enable, optionally followed by a reference to the plugin
+    options.
+
+    See [AnyEvent::I3Status::Plugins](https://metacpan.org/pod/AnyEvent::I3Status::Plugins) for a list of available plugins.
+
+- output
+
+    File descriptor to write the status output to. Unless specified, `STDOUT` will
+    be used.
+
+- input
+
+    File descriptor to listen to for events coming from the i3wm. Unless specified,
+    `STDIN` will be used.
+
+# CONFIG
+
+The config file is loaded via `do(...)`, which means it gets executed as a
+perl script. While this is a bit stupid, it allows doing some fancy stuff, like
+providing ad-hoc plugins directly on the configuration:
+
+    # Ad-hoc plugin example:
+    [
+        'net',
+        'disk' => { path => '/' },
+        sub { push @$_[1], { full_text => time }; }
+    ]
+
+# TODO
+
+- Tests, tests, tests
+- Add click handling
+- Support multi-bar / multi-handler setups
+- Allow plugins to do status update bursts (e.g: cache statuses, change only 1 via own timer)
+- Turn plugins into less horrible messes
+- Plugin: add sys monitor (or extend 'load' to allow free mem, i/o load, etc.)
+- Plugin: improve net to show up/down rates
+- Plugin: add run\_watch, similar to i3status one
+- Plugin: add network context checker (e.g: detect LANs like work/home/etc.)
+- Plugin: add VPN / ssh link checkers
+- Plugin: add RandR plugin, with click handling to switch modes
 
 # AUTHOR
 
@@ -50,19 +121,9 @@ You can also look for information at:
 
     [http://rt.cpan.org/NoAuth/Bugs.html?Dist=AnyEvent-I3Status](http://rt.cpan.org/NoAuth/Bugs.html?Dist=AnyEvent-I3Status)
 
-- AnnoCPAN: Annotated CPAN documentation
+- GitHub repository
 
-    [http://annocpan.org/dist/AnyEvent-I3Status](http://annocpan.org/dist/AnyEvent-I3Status)
-
-- CPAN Ratings
-
-    [http://cpanratings.perl.org/d/AnyEvent-I3Status](http://cpanratings.perl.org/d/AnyEvent-I3Status)
-
-- Search CPAN
-
-    [http://search.cpan.org/dist/AnyEvent-I3Status/](http://search.cpan.org/dist/AnyEvent-I3Status/)
-
-# ACKNOWLEDGEMENTS
+    [http://github.com/qrovira/anyevent-i3status/](http://github.com/qrovira/anyevent-i3status/)
 
 # LICENSE AND COPYRIGHT
 
@@ -73,33 +134,3 @@ under the terms of the the Artistic License (2.0). You may obtain a
 copy of the full license at:
 
 [http://www.perlfoundation.org/artistic\_license\_2\_0](http://www.perlfoundation.org/artistic_license_2_0)
-
-Any use, modification, and distribution of the Standard or Modified
-Versions is governed by this Artistic License. By using, modifying or
-distributing the Package, you accept this license. Do not use, modify,
-or distribute the Package, if you do not accept this license.
-
-If your Modified Version has been derived from a Modified Version made
-by someone other than you, you are nevertheless required to ensure that
-your Modified Version complies with the requirements of this license.
-
-This license does not grant you the right to use any trademark, service
-mark, tradename, or logo of the Copyright Holder.
-
-This license includes the non-exclusive, worldwide, free-of-charge
-patent license to make, have made, use, offer to sell, sell, import and
-otherwise transfer the Package with respect to any patent claims
-licensable by the Copyright Holder that are necessarily infringed by the
-Package. If you institute patent litigation (including a cross-claim or
-counterclaim) against any party alleging that the Package constitutes
-direct or contributory patent infringement, then this Artistic License
-to you shall terminate on the date that such litigation is filed.
-
-Disclaimer of Warranty: THE PACKAGE IS PROVIDED BY THE COPYRIGHT HOLDER
-AND CONTRIBUTORS "AS IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES.
-THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-PURPOSE, OR NON-INFRINGEMENT ARE DISCLAIMED TO THE EXTENT PERMITTED BY
-YOUR LOCAL LAW. UNLESS REQUIRED BY LAW, NO COPYRIGHT HOLDER OR
-CONTRIBUTOR WILL BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR
-CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THE PACKAGE,
-EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

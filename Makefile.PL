@@ -1,4 +1,4 @@
-use 5.006;
+use 5.018;
 use strict;
 use warnings FATAL => 'all';
 use ExtUtils::MakeMaker;
@@ -10,7 +10,7 @@ WriteMakefile(
     ABSTRACT_FROM    => 'lib/AnyEvent/I3Status.pm',
     LICENSE          => 'Artistic_2_0',
     PL_FILES         => {},
-    MIN_PERL_VERSION => 5.006,
+    MIN_PERL_VERSION => 5.018,
     CONFIGURE_REQUIRES => {
         'ExtUtils::MakeMaker' => 0,
     },
@@ -18,9 +18,14 @@ WriteMakefile(
         'Test::More' => 0,
     },
     PREREQ_PM => {
-        'AnyEvent' => '7.07',
-        'JSON::XS' => '3.01',
+        'AnyEvent'          => '7.07',
+        'JSON::XS'          => '3.01',
+        'Sys::CpuLoad'      => '0.02',
+        'Sys::Apm'          => '0.05',
+        'Filesys::Df'       => '0.92',
+        'Module::Pluggable' => '5.1',
     },
+    EXE_FILES => [ 'bin/i3status.pl' ],
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'AnyEvent-I3Status-*' },
 );
