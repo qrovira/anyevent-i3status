@@ -8,7 +8,7 @@ use AnyEvent::I3Status;
 use Getopt::Long;
 
 GetOptions(
-    'config|c=s' => \(my $CONF = "$ENV{HOME}/.i3status.pl"), 
+    'config|c=s' => \(my $CONF = "$ENV{HOME}/.p3status"), 
 );
 
 

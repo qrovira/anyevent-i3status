@@ -25,7 +25,7 @@ WriteMakefile(
         'Filesys::Df'       => '0.92',
         'Module::Pluggable' => '5.1',
     },
-    EXE_FILES => [ 'bin/i3status.pl' ],
+    EXE_FILES => [ 'bin/p3status' ],
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'AnyEvent-I3Status-*' },
 );

@@ -28,12 +28,16 @@ our $VERSION = '0.01';
 This module bundles a simple dummy script ready to be used for i3bar
 with the current set of plugins.
 
-    $ i3status.pl -c <config_file>
+    $ p3status -c <config_file>
 
-By default, the tool will try to load the configuration via C<do(...)>, which
+If no config file is specified, ~/.p3status will be tried, and if that
+also fails, a default configuration with all available plugins with no
+options will be used.
+
+Note that the tool will try to load the configuration via C<do(...)>, which
 must return a hash of options to use, including the plugin list:
 
-    # Example file ~/.i3status.pl
+    # Example file ~/.p3status
     [ 'apm', 'net', 'clock' ]
 
 
