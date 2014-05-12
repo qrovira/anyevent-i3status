@@ -88,7 +88,6 @@ providing ad-hoc plugins directly on the configuration:
 # TODO
 
 - Tests, tests, tests
-- Add click handling
 - Support multi-bar / multi-handler setups
 - Allow plugins to do status update bursts (e.g: cache statuses, change only 1 via own timer)
 - Turn plugins into less horrible messes

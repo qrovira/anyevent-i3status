@@ -227,8 +227,6 @@ providing ad-hoc plugins directly on the configuration:
 
 =item Tests, tests, tests
 
-=item Add click handling
-
 =item Support multi-bar / multi-handler setups
 
 =item Allow plugins to do status update bursts (e.g: cache statuses, change only 1 via own timer)

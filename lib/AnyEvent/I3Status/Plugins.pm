@@ -146,12 +146,33 @@ C<$opts{prio}> option, to preserve the user-configured status order.
         } );
     }
 
+=head2 EVENTS
+
+The following events are triggered on the handler instance:
+
+=over
+
+=item heartbeat ( $handler, $status )
+
+Basic heartbeat event which fires every C<$interval> seconds, telling the
+plugins to generate their status blocks.
+
+The current list of statuses is passed on C<$status>, to which the plugin
+can append or mangle any of the already generated statuses.
+
+=item click ( $handler, $click_event )
+
+If supported by your version of i3bar, this event is triggered when i3bar
+signals a user click. On C<$click_event> you can find the C<name>,
+C<instance>, C<button>, C<x> and C<w> for the event as provided
+according to the i3bar protocol.
+
 =head2 I3WM DOCS
 
 See L<I3WM documentation|http://i3wm.org/docs/i3bar-protocol.html> for more
 details on which fields can be used to describe status blocks.
 
-=head2 ACKNOWLEDGEMENTS
+=head1 ACKNOWLEDGEMENTS
 
 Hello Kitty is a trademark of Sanrio.
 
