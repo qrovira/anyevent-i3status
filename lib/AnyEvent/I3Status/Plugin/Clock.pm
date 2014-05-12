@@ -6,12 +6,14 @@ use warnings;
 
 use POSIX qw(strftime);
 
+my @wheel = qw( #ff0000 #00ff00 #0000ff );
  
 sub register {
     my ($class, $status, %opts) = @_;
 
     my $format = $opts{format} // "%Y-%m-%d %H:%M:%S";
     my $short_format = $opts{short_format} // "%Y-%m-%d %H:%M:%S";
+    my $idx = 3;
 
     $status->reg_cb( heartbeat => $opts{prio} => sub {
         my ($self, $status) = @_;
@@ -20,7 +22,13 @@ sub register {
             name => "clock",
             full_text => strftime($format, localtime),
             short_text => strftime($short_format, localtime),
+            $idx < @wheel ? ( color => $wheel[$idx] ) : (),
         };
+    } );
+
+    $status->reg_cb( click => sub {
+        my ($self, $click) = @_;
+        if( $click->{name} eq 'clock' ) { $idx++; $idx = 0 if $idx > @wheel; }
     } );
 }
 
