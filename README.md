@@ -39,10 +39,8 @@ If you want to use this module from your own perl program:
     AnyEvent::I3Status->new(
         interval => 1,
         plugins => [ qw/ net apm clock / ],
-
-        # Planned, not yet supported, for multi-bar & click-handling
-        output => \*STDOUT,
-        input => \*STDIN
+        output => \*STDOUT, # We'll print the JSON there
+        input => \*STDIN    # We'll read click event JSON from there
     );
 
     AnyEvent::condvar->recv;
@@ -92,7 +90,7 @@ providing ad-hoc plugins directly on the configuration:
 # TODO
 
 - Tests, tests, tests
-- Support multi-bar / multi-handler setups
+- Support multi-bar / multi-handler setups and provide example using mkfifo
 - Allow plugins to do status update bursts (e.g: cache statuses, change only 1 via own timer)
 - Turn plugins into less horrible messes
 - Plugin: add sys monitor (or extend 'load' to allow free mem, i/o load, etc.)
