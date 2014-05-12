@@ -9,6 +9,7 @@ use base 'Object::Event';
 use Module::Pluggable require => 1;
 use AnyEvent;
 use AnyEvent::Handle;
+use JSON;
 
 =head1 NAME
 
@@ -100,7 +101,25 @@ sub new {
     my ($class, %options) = @_;
 
     my $self = {
-        output => AnyEvent::Handle->new( fh => \*STDOUT ),
+        output => AnyEvent::Handle->new(
+            fh => $options{output} // \*STDOUT
+        ),
+        input => AnyEvent::Handle->new(
+            fh => $options{input} // \*STDIN,
+            on_read => sub {
+                shift->push_read( line => sub {
+                    my ($h, $l) = @_;
+                    return if $l eq '[';
+                    $l =~ s#^,##;
+                    my $j = decode_json $l;
+                    $self->event( click => $j );
+                } );
+            },
+            on_error => sub {
+                # Old i3wm which does not handle click events will shut stdin,
+                # causing unhandled exception and stopping the loop
+            }
+        ),
         interval => $options{interval} // 1,
     };
 
@@ -122,7 +141,7 @@ sub new {
     $self->{output}->push_write(
         json => {
             version => 1,
-            click_events => 1, # Not supported yet
+            click_events => JSON::true,
             stop_signal => 10, # We want to stop via SIGUSR1
             cont_signal => 12  # And resume via SIGUSR2
         }
