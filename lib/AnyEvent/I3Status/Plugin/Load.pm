@@ -7,16 +7,18 @@ use warnings;
 use Sys::CpuLoad;
  
 sub register {
-    my ($class, $status, %opts) = @_;
+    my ($class, $i3status, %opts) = @_;
 
-    $status->reg_cb( heartbeat => $opts{prio} => sub {
-        my ($self, $status) = @_;
+    $i3status->reg_cb(
+        heartbeat => $opts{prio} => sub {
+            my ($i3status, $status) = @_;
 
-        push @$status, {
-            name => "load",
-            full_text => join ' ',Sys::CpuLoad::load,
-        };
-    } );
+            push @$status, {
+                name => "load",
+                full_text => join ' ',Sys::CpuLoad::load,
+            };
+        }
+    );
 }
 
 1;

@@ -10,28 +10,30 @@ use JSON;
 
  
 sub register {
-    my ($class, $status, %opts) = @_;
+    my ($class, $i3status, %opts) = @_;
 
-    $status->reg_cb( heartbeat => $opts{prio} => sub {
-        my ($self, $status) = @_;
+    $i3status->reg_cb(
+        heartbeat => $opts{prio} => sub {
+            my ($i3status, $status) = @_;
 
-        my %sensors = parse_sensors();
+            my %sensors = parse_sensors();
 
-        if( exists $opts{sensor} and $opts{sensor} eq 'all' ) {
-            push @$status, sensor_status( $sensors{ $_ }, %opts )
-                foreach( keys %sensors );
+            if( exists $opts{sensor} and $opts{sensor} eq 'all' ) {
+                push @$status, sensor_status( $sensors{ $_ }, %opts )
+                    foreach( keys %sensors );
+            }
+            elsif( exists $opts{sensor} ) {
+                push @$status, sensor_status( $sensors{ $opts{sensor} }, %opts );
+            }
+            else {
+                my ( $highest ) = sort {
+                    $sensors{$b}{temp} <=>  $sensors{$a}{temp}
+                } keys %sensors;
+
+                push @$status, sensor_status( $sensors{$highest}, %opts );
+            }
         }
-        elsif( exists $opts{sensor} ) {
-            push @$status, sensor_status( $sensors{ $opts{sensor} }, %opts );
-        }
-        else {
-            my ( $highest ) = sort {
-                $sensors{$b}{temp} <=>  $sensors{$a}{temp}
-            } keys %sensors;
-
-            push @$status, sensor_status( $sensors{$highest}, %opts );
-        }
-    } );
+    );
 }
 
 sub sensor_status {

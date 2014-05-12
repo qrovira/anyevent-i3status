@@ -134,16 +134,25 @@ C<$opts{prio}> option, to preserve the user-configured status order.
     sub register {
         my ($class, $status, %opts) = @_;
     
-        $status->reg_cb( [ heartbeat => $opts{prio} ] => sub {
-            my ($handler, $status) = @_;
+        $status->reg_cb(
+            heartbeat => $opts{prio} => sub {
+                my ($handler, $status) = @_;
 
-            push @$status, {
-                name => "some_name",
-                instance => $opts{main_param},
-                color => '#ef3c7b',
-                full_text => 'Hello kitty',
-            };
-        } );
+                push @$status, {
+                    name => "some_name",
+                    instance => $opts{main_param},
+                    color => '#ef3c7b',
+                    full_text => 'Hello kitty',
+                };
+            },
+            click => sub {
+                my ($i3status, $click) = @_;
+
+                if( $click->{name} eq "some_name" ) {
+                    ...
+                }
+            }
+        );
     }
 
 =head2 EVENTS

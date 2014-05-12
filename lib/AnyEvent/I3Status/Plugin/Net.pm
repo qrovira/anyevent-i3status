@@ -5,42 +5,44 @@ use strict;
 use warnings;
 
 sub register {
-    my ($class, $status, %opts) = @_;
+    my ($class, $i3status, %opts) = @_;
 
-    $status->reg_cb( heartbeat => $opts{prio} => sub {
-        my ($self, $status) = @_;
+    $i3status->reg_cb(
+        heartbeat => $opts{prio} => sub {
+            my ($i3status, $status) = @_;
 
-        my %ifaces = parse_ifconfig();
-        delete $ifaces{lo};
+            my %ifaces = parse_ifconfig();
+            delete $ifaces{lo};
 
-        if( exists $opts{dev} and $opts{dev} eq 'all' ) {
-            push @$status, net_status( $ifaces{ $_ }, %opts )
-                foreach( keys %ifaces );
-        }
-        elsif( exists $opts{dev} ) {
-            push @$status, net_status( $ifaces{ $opts{dev} }, %opts );
-        }
-        else {
-            my @up = sort { $a cmp $b } grep {
-                (
-                    defined $ifaces{$_}{ipv4} &&
-                    $ifaces{$_}{ipv4} !~ m/^127\./
-                ) ||
-                (
-                    defined $ifaces{$_}{ipv6} &&
-                    $ifaces{$_}{ipv6_scope} !~ m/^Link|Host$/
-                )
-            } keys %ifaces;
-
-            if( @up ) {
+            if( exists $opts{dev} and $opts{dev} eq 'all' ) {
                 push @$status, net_status( $ifaces{ $_ }, %opts )
-                    foreach @up;
-            } else {
-                push @$status, net_status( $ifaces{ $_ }, %opts )
-                    foreach ( sort { $a cmp $b } keys %ifaces );
+                    foreach( keys %ifaces );
+            }
+            elsif( exists $opts{dev} ) {
+                push @$status, net_status( $ifaces{ $opts{dev} }, %opts );
+            }
+            else {
+                my @up = sort { $a cmp $b } grep {
+                    (
+                        defined $ifaces{$_}{ipv4} &&
+                        $ifaces{$_}{ipv4} !~ m/^127\./
+                    ) ||
+                    (
+                        defined $ifaces{$_}{ipv6} &&
+                        $ifaces{$_}{ipv6_scope} !~ m/^Link|Host$/
+                    )
+                } keys %ifaces;
+
+                if( @up ) {
+                    push @$status, net_status( $ifaces{ $_ }, %opts )
+                        foreach @up;
+                } else {
+                    push @$status, net_status( $ifaces{ $_ }, %opts )
+                        foreach ( sort { $a cmp $b } keys %ifaces );
+                }
             }
         }
-    } );
+    );
 }
 
 sub net_status {
