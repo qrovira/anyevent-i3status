@@ -101,27 +101,29 @@ sub new {
     my ($class, %options) = @_;
 
     my $self = {
-        output => AnyEvent::Handle->new(
-            fh => $options{output} // \*STDOUT
-        ),
-        input => AnyEvent::Handle->new(
-            fh => $options{input} // \*STDIN,
-            on_read => sub {
-                shift->push_read( line => sub {
-                    my ($h, $l) = @_;
-                    return if $l eq '[';
-                    $l =~ s#^,##;
-                    my $j = decode_json $l;
-                    $self->event( click => $j );
-                } );
-            },
-            on_error => sub {
-                # Old i3wm which does not handle click events will shut stdin,
-                # causing unhandled exception and stopping the loop
-            }
-        ),
         interval => $options{interval} // 1,
     };
+
+    $self->{output} = AnyEvent::Handle->new(
+        fh => $options{output} // \*STDOUT
+    );
+
+    $self->{input} = AnyEvent::Handle->new(
+        fh => $options{input} // \*STDIN,
+        on_read => sub {
+            shift->push_read( line => sub {
+                my ($h, $l) = @_;
+                return if $l eq '[';
+                $l =~ s#^,##;
+                my $j = decode_json $l;
+                $self->event( click => $j );
+            } );
+        },
+        on_error => sub {
+            # Old i3wm which does not handle click events will shut stdin,
+            # causing unhandled exception and stopping the loop
+        }
+    );
 
     bless $self, ref($class) || $class;
 
@@ -146,8 +148,7 @@ sub new {
             cont_signal => 12  # And resume via SIGUSR2
         }
     );
-    $self->{output}->push_write( "\012[" );
-    $self->{output}->push_write( "\012" );
+    $self->{output}->push_write( "\012[\012" );
 
     # Finally, start things up!
     $self->_setup_heartbeat;
