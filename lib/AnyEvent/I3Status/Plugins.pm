@@ -126,6 +126,40 @@ When set to B<all>, a status block will be added for each found interface.
 
 
 
+=head2 PidFile
+
+Check if a process is running.
+
+Be aware that the check for the process is done by checking if we can signal
+the process, which usually means we either own it, or we are root.
+
+=over
+
+=item path
+
+The path to the pidfile to check.
+
+=item ok_text
+
+Text to display when the process is running. If empty, no status will be displayed.
+
+=item err_text
+
+Text to display when the process is not running. If empty, no status will be
+displayed.
+
+=item ok_color
+
+Color to use for OK status.
+
+=item err_color
+
+Color to use for missing status. Defaults to '#ff0000'.
+
+=back
+
+
+
 =head2 Temperature
 
 Displays temperatures from the C<sensors> command.
