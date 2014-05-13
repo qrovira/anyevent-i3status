@@ -64,6 +64,38 @@ A threshold (% full) on which to alert using red color & urgency on the bar. Def
 
 
 
+=head2 File
+
+Check if a file exists.
+
+This can be used, for example, to check for ssh's ControlMaster sockets.
+
+=over
+
+=item path
+
+The path to the file to check. It will be passed to C<glob( ... )>, so you can use wildcards.
+
+=item ok_text
+
+Text to display when the file is found. If empty, no status will be displayed.
+
+=item err_text
+
+Text to display when the file is missing. If empty, no status will be displayed.
+
+=item ok_color
+
+Color to use for OK status.
+
+=item err_color
+
+Color to use for missing status. Defaults to '#ff0000'.
+
+=back
+
+
+
 =head2 Load
 
 Display the average (1m/5m/15m) load values for the system.
