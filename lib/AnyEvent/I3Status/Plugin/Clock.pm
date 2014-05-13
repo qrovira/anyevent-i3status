@@ -6,7 +6,7 @@ use warnings;
 
 use POSIX qw(strftime);
 
-my @wheel = qw( #ff0000 #00ff00 #0000ff );
+my @wheel = ( '#ff0000', '#00ff00', '#0000ff' );
  
 sub register {
     my ($class, $i3status, %opts) = @_;
