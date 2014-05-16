@@ -58,7 +58,7 @@ Path that points to where the partition is mounted.
 
 =item warn
 
-A threshold (% full) on which to alert using red color & urgency on the bar. Defaults to 95%.
+A threshold on which to alert using red color & urgency on the bar. Defaults to 1G.
 
 =back
 
