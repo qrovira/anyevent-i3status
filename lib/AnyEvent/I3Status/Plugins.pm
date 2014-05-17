@@ -242,6 +242,8 @@ signals a user click. On C<$click_event> you can find the C<name>,
 C<instance>, C<button>, C<x> and C<w> for the event as provided
 according to the i3bar protocol.
 
+=back
+
 =head2 I3WM DOCS
 
 See L<I3WM documentation|http://i3wm.org/docs/i3bar-protocol.html> for more
