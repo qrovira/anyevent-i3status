@@ -63,8 +63,9 @@ sub net_status {
             color => ( $iface->{essid} ? '#00ff00' : '#ff0000' ),
             full_text => 'W: '.(
                 $iface->{essid} ?
-                $iface->{essid}.' ('.sprintf('%03d',$quality).'%)' :
-                'offline'
+                    $iface->{essid} .
+                    ( $quality ? ' ('.sprintf('%03d',$quality).'%)' : '' ) :
+                    'offline'
             )
         };
     }
