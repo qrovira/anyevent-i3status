@@ -194,6 +194,10 @@ When it's not specified, it will report on the warmest sensor found.
 
 When set to B<all>, a status block will be added for each found sensor.
 
+=item no_high
+
+Do not display the high temperature threshold.
+
 =back
 
 

@@ -43,7 +43,7 @@ sub sensor_status {
         name => "temperature",
         instance => $sensor->{name},
         full_text => $sensor->{temp}."°".$sensor->{unit}.
-            ( defined($sensor->{high}) ?
+            ( (defined($sensor->{high}) && !$opts{no_high}) ?
                 '/'.$sensor->{high}."°".$sensor->{unit} : '' ),
         ( defined($sensor->{high}) && $sensor->{temp} > $sensor->{high} ?
             (color => '#ff0000', urgent => JSON::true) : ()
