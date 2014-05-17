@@ -4,6 +4,10 @@ use 5.018;
 use strict;
 use warnings;
 
+use Time::HiRes qw/gettimeofday tv_interval/;
+
+my %speed_samples;
+
 sub register {
     my ($class, $i3status, %opts) = @_;
 
@@ -13,6 +17,17 @@ sub register {
 
             my %ifaces = parse_ifconfig();
             delete $ifaces{lo};
+
+            my $last_check = [gettimeofday];
+            foreach( keys %ifaces ) {
+                my $counts = $speed_samples{$_} //= [];
+                push @$counts, {
+                    D => $ifaces{$_}{rx_bytes},
+                    U => $ifaces{$_}{tx_bytes},
+                    time => $last_check
+                };
+                shift @$counts if @$counts > ($opts{samples} // 5);
+            }
 
             if( exists $opts{dev} and $opts{dev} eq 'all' ) {
                 push @$status, net_status( $ifaces{ $_ }, %opts )
@@ -45,15 +60,40 @@ sub register {
     );
 }
 
+our @UNITS = (' ', qw/ k M G T P /);
+sub human_speed {
+    my ($last_sample, $first_sample, $direction, $format) = @_;
+
+    my $delta = $last_sample->{$direction} - $first_sample->{$direction};
+    $delta /= tv_interval( $first_sample->{time}, $last_sample->{time} );
+
+    my $exp = 0;
+    do { $delta /= 1024; $exp++ } while( $delta > 1000 );
+
+    return sprintf( $format // '% 6.1f%sBs %s', $delta, $UNITS[$exp], $direction );
+}
+
 sub net_status {
     my ($iface, %opts) = @_;
     my $addr = $iface->{ipv4} // $iface->{ipv6};
-    my @status = {
+    my @status = ();
+
+    my $s = {
         name => "net",
         instance => $iface->{name},
         color => ( $addr ? '#00ff00' : '#ff0000' ),
         full_text => $iface->{name}.': '.( $addr ? $addr : '-' ),
     };
+
+    my $counts = $speed_samples{$iface->{name}};
+    if( !$opts{no_speed} && $counts && @$counts > 1 ) {
+        $s->{full_text} .= ' | '. 
+            human_speed( $counts->[-1], $counts->[0], 'D', $opts{speed_format} )
+            . ' / ' .
+            human_speed( $counts->[-1], $counts->[0], 'U', $opts{speed_format} )
+    }
+
+    push @status, $s;
 
     if( $iface->{wireless} ) {
         my $quality = int( 100 * $iface->{link_current} / ($iface->{link_total} // 1) );

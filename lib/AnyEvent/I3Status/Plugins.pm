@@ -121,6 +121,21 @@ When it's not specified, it'll try to report on first non-local, connected inter
 
 When set to B<all>, a status block will be added for each found interface.
 
+=item no_speed
+
+Set to a true value to hide the upload/download speed numbers
+
+=item samples
+
+Number of samples to use for calculating the speed. Defaults to 5.
+
+=item speed_format
+
+Format string (see C<sprintf>) to apply to the speed string.
+
+It will get, in this order: $speed, $unit, $direction, where unit is /kMGTP/ and
+direction is /DU/.
+
 =back
 
 
