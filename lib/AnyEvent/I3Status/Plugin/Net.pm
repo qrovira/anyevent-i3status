@@ -52,7 +52,7 @@ sub net_status {
         name => "net",
         instance => $iface->{name},
         color => ( $addr ? '#00ff00' : '#ff0000' ),
-        full_text => ( $addr ? 'IP: '.$addr : 'IP: -' ),
+        full_text => $iface->{name}.': '.( $addr ? $addr : '-' ),
     };
 
     if( $iface->{wireless} ) {
