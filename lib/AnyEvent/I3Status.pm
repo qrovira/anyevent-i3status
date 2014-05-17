@@ -238,13 +238,7 @@ providing ad-hoc plugins directly on the configuration:
 
 =item Plugin: add sys monitor (or extend 'load' to allow free mem, i/o load, etc.)
 
-=item Plugin: improve net to show up/down rates
-
-=item Plugin: add run_watch, similar to i3status one
-
 =item Plugin: add network context checker (e.g: detect LANs like work/home/etc.)
-
-=item Plugin: add VPN / ssh link checkers
 
 =item Plugin: add RandR plugin, with click handling to switch modes
 
