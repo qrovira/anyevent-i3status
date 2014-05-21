@@ -1,6 +1,6 @@
 package AnyEvent::I3Status::Plugin::Net;
 
-use 5.018;
+use 5.014;
 use strict;
 use warnings;
 
