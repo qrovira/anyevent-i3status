@@ -24,6 +24,7 @@ WriteMakefile(
         'Sys::Apm'          => '0.05',
         'Filesys::Df'       => '0.92',
         'Module::Pluggable' => '5.1',
+        'Linux::Sysfs'      => '0.03',
     },
     EXE_FILES => [ 'bin/p3status' ],
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
