@@ -45,8 +45,8 @@ sub register {
                         my $status = attrval($dev->get_attr('status'));
                         my ($full,$now,$rate) = map { attrval($dev->get_attr($_)) }
                             qw/ energy_full energy_now power_now /;
-                        my $percent = sprintf( "%.1f", 100 * $now / ( $full // 1 ) );
-                        my $time = ( $status eq 'Charging' ? ($full - $now) : $now ) / $rate;
+                        my $percent = sprintf( "%.1f", 100 * $now / ( $full || 1 ) );
+                        my $time = $rate ? ( $status eq 'Charging' ? ($full - $now) : $now ) / $rate : 0;
                         my $ftime = sprintf("%d:%02d", int $time, 60 * ($time - int $time));
 
                         unshift @all, {
