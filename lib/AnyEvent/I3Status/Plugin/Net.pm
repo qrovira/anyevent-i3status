@@ -15,7 +15,7 @@ sub register {
         heartbeat => $opts{prio} => sub {
             my ($i3status, $status) = @_;
 
-            my %ifaces = parse_ifconfig();
+            my %ifaces = parse_ifconfig(%opts);
             delete $ifaces{lo};
 
             my $last_check = [gettimeofday];
@@ -96,7 +96,9 @@ sub net_status {
     push @status, $s;
 
     if( $iface->{wireless} ) {
-        my $quality = int( 100 * $iface->{link_current} / ($iface->{link_total} // 1) );
+        my $quality = defined($iface->{link_total}) ?
+            int( 100 * $iface->{link_current} / ($iface->{link_total} // 1) ) : undef;
+
         push @status, {
             name => "net",
             instance => $iface->{name}."/wireless",
@@ -135,10 +137,11 @@ my @IWSCAN = (
 );
 
 sub parse_ifconfig {
+    my %opts = @_;
     my %ifaces = ();
 
     scan_ifwconfig_output('ifconfig -a', \%ifaces, @IFSCAN);
-    scan_ifwconfig_output('iwconfig 2>/dev/null', \%ifaces, @IWSCAN);
+    scan_ifwconfig_output( ($opts{iwconfig_cmd} // 'iwconfig').' 2>/dev/null', \%ifaces, @IWSCAN);
 
     return %ifaces;
 }

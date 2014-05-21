@@ -136,6 +136,13 @@ Format string (see C<sprintf>) to apply to the speed string.
 It will get, in this order: $speed, $unit, $direction, where unit is /kMGTP/ and
 direction is /DU/.
 
+=item iwconfig_cmd
+
+The iwconfig command to use to try to fetch wireless status. Defaults to 'iwconfig'.
+
+In some systems iwconfig will not display power levels or link quality unless it is
+run as root. An ugly workaround is to use 'sudo' to solve this.
+
 =back
 
 
