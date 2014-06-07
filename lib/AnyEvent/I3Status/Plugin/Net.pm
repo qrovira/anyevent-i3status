@@ -44,7 +44,7 @@ sub register {
                     ) ||
                     (
                         defined $ifaces{$_}{ipv6} &&
-                        $ifaces{$_}{ipv6_scope} !~ m/^Link|Host$/
+                        $ifaces{$_}{ipv6_scope} !~ m/^(Link|Host)$/
                     )
                 } keys %ifaces;
 
@@ -76,17 +76,18 @@ sub human_speed {
 sub net_status {
     my ($iface, %opts) = @_;
     my $addr = $iface->{ipv4} // $iface->{ipv6};
+    my $up = $iface->{flags} =~ m#RUNNING#;
     my @status = ();
 
     my $s = {
         name => "net",
         instance => $iface->{name},
-        color => ( $addr ? '#00ff00' : '#ff0000' ),
+        color => ( $up ? '#00ff00' : '#ff0000' ),
         full_text => $iface->{name}.': '.( $addr ? $addr : '-' ),
     };
 
     my $counts = $speed_samples{$iface->{name}};
-    if( !$opts{no_speed} && $counts && @$counts > 1 ) {
+    if( !$opts{no_speed} && $counts && @$counts > 1 && $up ) {
         $s->{full_text} .= ' | '. 
             human_speed( $counts->[-1], $counts->[0], 'D', $opts{speed_format} )
             . ' / ' .
@@ -127,6 +128,7 @@ my @IFSCAN = (
     qr/inet addr.*Mask:(?<ipv4_mask>[0-9\.]+)/,
     qr/inet6\s+addr:\s*(?<ipv6>[0-9a-f:]+)\/(?<ipv6_mask>\d+) Scope:(?<ipv6_scope>\w+)/,
     qr/RX\sbytes:\s*(?<rx_bytes>\d+) .* TX\sbytes:\s*(?<tx_bytes>\d+)/,
+    qr/(?<flags>(?:\w+\s+)*)\s*MTU:(?<mtu>\d+)\s+Metric:/,
 );
 my @IWSCAN = (
     qr/ESSID:"(?<essid>[^"]+)"/,
