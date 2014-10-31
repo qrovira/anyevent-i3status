@@ -142,8 +142,8 @@ sub parse_ifconfig {
     my %opts = @_;
     my %ifaces = ();
 
-    scan_ifwconfig_output('ifconfig -a', \%ifaces, @IFSCAN);
-    scan_ifwconfig_output( ($opts{iwconfig_cmd} // 'iwconfig').' 2>/dev/null', \%ifaces, @IWSCAN);
+    scan_ifwconfig_output('/sbin/ifconfig -a', \%ifaces, @IFSCAN);
+    scan_ifwconfig_output( ($opts{iwconfig_cmd} // '/sbin/iwconfig').' 2>/dev/null', \%ifaces, @IWSCAN);
 
     return %ifaces;
 }
