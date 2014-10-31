@@ -12,6 +12,9 @@ use Linux::Sysfs;
 sub register {
     my ($class, $i3status, %opts) = @_;
 
+    my $flop = 0;
+    my @FLOPS = ('#ff0000','#ffff00');
+
     $i3status->reg_cb(
         heartbeat => $opts{prio} => sub {
             my ($i3status, $status) = @_;
@@ -40,27 +43,40 @@ sub register {
             elsif( my $power_supply = Linux::Sysfs::Class->open('power_supply') ) {
                 my @all;
                 foreach my $dev ( $power_supply->get_devices ) {
-                    my $type = attrval($dev->get_attr('type'));
+                    my $type = attrval($dev, 'type');
+                    warn "Parsing type $type, for dev ".$dev->name."\n";
                     if( $type eq 'Battery' ) {
-                        my $status = attrval($dev->get_attr('status'));
-                        my ($full,$now,$rate) = map { attrval($dev->get_attr($_)) }
-                            qw/ energy_full energy_now power_now /;
+                        my $status = attrval($dev, 'status');
+                        my $full = attrval($dev, 'energy_full') // attrval($dev, 'charge_full');
+                        my $now = attrval($dev, 'energy_now') // attrval($dev, 'charge_now');
+                        my $rate = attrval($dev, 'power_now') // attrval($dev, 'current_now');
+                        my $alarm = attrval($dev, 'alarm');
+
                         my $percent = sprintf( "%.1f", 100 * $now / ( $full || 1 ) );
-                        my $time = $rate ? ( $status eq 'Charging' ? ($full - $now) : $now ) / $rate : 0;
+                        my $time =
+                            $rate && $status eq 'Charging' ? ($full - $now) / $rate :
+                            $rate && $status eq 'Discharging' ? $now / $rate :
+                            0;
                         my $ftime = sprintf("%d:%02d", int $time, 60 * ($time - int $time));
+
 
                         unshift @all, {
                             name => "battery",
                             instance => $dev->name,
                             full_text => "$percent\% ($ftime left)",
+                            ( $status eq 'Full' ? ( color => '#00ff00' ) : () ),
                             ( $percent < 50 ? ( color => '#ffa500' ) : () ),
                             ( $percent < 20 ? ( color => '#ff0000' ) : () ),
-                            ( $dev->get_attr('alarm') ? ( urgent => JSON::true ) : () ),
+                            ( $percent < 10 ? ( color => $FLOPS[$flop = ($flop+1) % 2] ) : () ),
+                            ( $alarm ? ( urgent => JSON::true ) : () ),
                         };
                     }
                     elsif( $type eq 'Mains' ) {
-                        push @all, { name => "battery", instance => "AC", full_text => "AC" }
-                            if attrval($dev->get_attr('online'));
+                        push @all, {
+                            name => "battery",
+                            instance => "AC",
+                            full_text => "AC"
+                        } if attrval($dev,'online');
                     }
                 }
                 push @$status, @all;
@@ -71,11 +87,16 @@ sub register {
 
 # wtf.. i guess this makes more sense if we were to keep attrs around
 sub attrval {
-    my ($attr) = @_;
-    $attr->can_read || return;
-    $attr->read;
+    my ($dev,$attr_name) = @_;
+
+    return unless $dev && $attr_name;
+
+    my $attr = $dev->get_attr($attr_name);
+    return unless $attr && $attr->can_read && $attr->read;
+
     my $val = $attr->value;
     chomp $val;
+
     return $val;
 }
 
