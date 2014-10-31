@@ -44,7 +44,6 @@ sub register {
                 my @all;
                 foreach my $dev ( $power_supply->get_devices ) {
                     my $type = attrval($dev, 'type');
-                    warn "Parsing type $type, for dev ".$dev->name."\n";
                     if( $type eq 'Battery' ) {
                         my $status = attrval($dev, 'status');
                         my $full = attrval($dev, 'energy_full') // attrval($dev, 'charge_full');
