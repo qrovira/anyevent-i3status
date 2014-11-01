@@ -3,6 +3,7 @@ package AnyEvent::I3Status::Plugin::Battery;
 use 5.014;
 use strict;
 use warnings;
+use utf8;
 
 use JSON;
 use Sys::Apm;
