@@ -119,6 +119,7 @@ sub new {
                 $l =~ s#^,##;
                 my $j = decode_json $l;
                 $self->event( click => $j );
+                $self->_heartbeat;
             } );
         },
         on_error => sub {
@@ -197,16 +198,20 @@ sub _setup_heartbeat {
 
     $self->{beat_cv} = AnyEvent->timer(
         interval => $self->{interval},
-        cb => sub {
-            my $status = [];
-            $self->event('heartbeat', $status);
-
-            # Write status line to stdout
-            $self->{output}->push_write(",") unless $self->{num_statuses}++ == 0;
-            $self->{output}->push_write( json => $status );
-            $self->{output}->push_write("\012");
-        }
+        cb => sub { $self->_heartbeat }
     );
+}
+
+sub _heartbeat {
+    my $self = shift;
+    my $status = [];
+
+    $self->event('heartbeat', $status);
+
+    # Write status line to stdout
+    $self->{output}->push_write(",") unless $self->{num_statuses}++ == 0;
+    $self->{output}->push_write( json => $status );
+    $self->{output}->push_write("\012");
 }
 
 
