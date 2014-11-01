@@ -62,7 +62,7 @@ sub register {
                         unshift @all, {
                             name => "battery",
                             instance => $dev->name,
-                            full_text => "$percent\% ($ftime left)",
+                            full_text => "⚡ $percent\% ($ftime left)",
                             ( $status eq 'Full' ? ( color => '#00ff00' ) : () ),
                             ( $percent < 50 ? ( color => '#ffa500' ) : () ),
                             ( $percent < 20 ? ( color => '#ff0000' ) : () ),
@@ -74,7 +74,7 @@ sub register {
                         push @all, {
                             name => "battery",
                             instance => "AC",
-                            full_text => "AC"
+                            full_text => "⚡ AC"
                         } if attrval($dev,'online');
                     }
                 }
