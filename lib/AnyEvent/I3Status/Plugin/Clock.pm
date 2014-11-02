@@ -3,17 +3,16 @@ package AnyEvent::I3Status::Plugin::Clock;
 use 5.014;
 use strict;
 use warnings;
+use utf8;
 
 use POSIX qw(strftime);
 
-my @wheel = ( '#ff0000', '#00ff00', '#0000ff' );
- 
 sub register {
     my ($class, $i3status, %opts) = @_;
 
-    my $format = $opts{format} // "%Y-%m-%d %H:%M:%S";
-    my $short_format = $opts{short_format} // "%Y-%m-%d %H:%M:%S";
-    my $idx = 3;
+    my $long_format = $opts{long_format} // "%Y-%m-%d %H:%M:%S";
+    my $short_format = $opts{short_format} // "%H:%M:%S";
+    my $long = 0;
 
     $i3status->reg_cb(
         heartbeat => $opts{prio} => sub {
@@ -21,14 +20,15 @@ sub register {
 
             push @$status, {
                 name => "clock",
-                full_text => strftime($format, localtime),
-                short_text => strftime($short_format, localtime),
-                $idx < @wheel ? ( color => $wheel[$idx] ) : (),
+                full_text => "⌚ ".strftime( $long ? $long_format : $short_format, localtime ),
+                short_text => "⌚ ".strftime( $short_format, localtime ),
             };
         },
         click => sub {
             my ($i3status, $click) = @_;
-            if( $click->{name} eq 'clock' ) { $idx++; $idx = 0 if $idx > @wheel; }
+
+            $long = !$long
+                if( $click->{name} eq 'clock' );
         }
     );
 
