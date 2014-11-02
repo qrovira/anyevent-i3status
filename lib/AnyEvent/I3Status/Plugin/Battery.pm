@@ -15,6 +15,7 @@ sub register {
 
     my $flop = 0;
     my @FLOPS = ('#ff0000','#ffff00');
+    my $long = {};
 
     $i3status->reg_cb(
         heartbeat => $opts{prio} => sub {
@@ -63,7 +64,7 @@ sub register {
                         unshift @all, {
                             name => "battery",
                             instance => $dev->name,
-                            full_text => "⚡ $percent\% ($ftime left)",
+                            full_text => "⚡ $percent\%" . ($long->{$dev->name} ? " ($ftime left)" : ""),
                             ( $status eq 'Full' ? ( color => '#00ff00' ) : () ),
                             ( $percent < 50 ? ( color => '#ffa500' ) : () ),
                             ( $percent < 20 ? ( color => '#ff0000' ) : () ),
@@ -81,6 +82,15 @@ sub register {
                 }
                 push @$status, @all;
             }
+        },
+        click => sub {
+            my ($i3status, $click) = @_;
+
+            use Data::Dumper;
+            warn Dumper $click;
+
+            $long->{$click->{instance}} = !$long->{$click->{instance}}
+                if( $click->{name} eq 'battery' );
         }
     );
 }
