@@ -46,7 +46,8 @@ sub register {
                 $s->{urgent} = JSON::true;
             }
 
-            push @$status, $s;
+            push @$status, $s
+                unless( !$s->{urgent} && $opts{hide_ok} );
         }
     );
 }
