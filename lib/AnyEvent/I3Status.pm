@@ -147,8 +147,8 @@ sub new {
         json => {
             version => 1,
             click_events => JSON::true,
-            stop_signal => 10, # We want to stop via SIGUSR1
-            cont_signal => 12  # And resume via SIGUSR2
+#            stop_signal => 10, # We want to stop via SIGUSR1
+#            cont_signal => 12  # And resume via SIGUSR2
         }
     );
     $self->{output}->push_write( "\012[\012" );

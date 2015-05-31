@@ -30,7 +30,6 @@ $config->{plugins} = [ AnyEvent::I3Status->plugins ]
 my $i3 = AnyEvent::I3Status->new(%$config);
 
 # Loop forever
-my $cv = AnyEvent->condvar;
-$cv->recv;
+AnyEvent->condvar->recv;
 
 
