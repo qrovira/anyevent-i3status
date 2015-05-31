@@ -56,6 +56,12 @@ sub register {
                         foreach ( sort { $a cmp $b } keys %ifaces );
                 }
             }
+        },
+        click => sub {
+            my ($i3status, $click) = @_;
+
+            $opts{$click->{instance}}{show_speed} = !$opts{$click->{instance}}{show_speed}
+                if( $click->{name} eq 'net' );
         }
     );
 }
@@ -87,7 +93,7 @@ sub net_status {
     };
 
     my $counts = $speed_samples{$iface->{name}};
-    if( !$opts{no_speed} && $counts && @$counts > 1 && $up ) {
+    if( ($opts{show_speed} || $opts{$iface->{name}}{show_speed}) && $counts && @$counts > 1 && $up ) {
         $s->{full_text} .= ' | '. 
             human_speed( $counts->[-1], $counts->[0], 'D', $opts{speed_format} )
             . ' / ' .
