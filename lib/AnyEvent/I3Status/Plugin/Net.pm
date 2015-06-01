@@ -1,69 +1,123 @@
 package AnyEvent::I3Status::Plugin::Net;
 
+use parent 'AnyEvent::I3Status::Plugin';
+
 use 5.014;
 use strict;
 use warnings;
 
 use Time::HiRes qw/gettimeofday tv_interval/;
 
-my %speed_samples;
+=head1 NAME
 
-sub register {
-    my ($class, $i3status, %opts) = @_;
+AnyEvent::I3Status::Plugin::Net - Display status of the network
 
-    $i3status->reg_cb(
-        heartbeat => $opts{prio} => sub {
-            my ($i3status, $status) = @_;
+=head1 SYNOPSIS
 
-            my %ifaces = parse_ifconfig(%opts);
-            delete $ifaces{lo};
-
-            my $last_check = [gettimeofday];
-            foreach( keys %ifaces ) {
-                my $counts = $speed_samples{$_} //= [];
-                push @$counts, {
-                    D => $ifaces{$_}{rx_bytes},
-                    U => $ifaces{$_}{tx_bytes},
-                    time => $last_check
-                };
-                shift @$counts if @$counts > ($opts{samples} // 5);
-            }
-
-            if( exists $opts{dev} and $opts{dev} eq 'all' ) {
-                push @$status, net_status( $ifaces{ $_ }, %opts )
-                    foreach( keys %ifaces );
-            }
-            elsif( exists $opts{dev} ) {
-                push @$status, net_status( $ifaces{ $opts{dev} }, %opts );
-            }
-            else {
-                my @up = sort { $a cmp $b } grep {
-                    (
-                        defined $ifaces{$_}{ipv4} &&
-                        $ifaces{$_}{ipv4} !~ m/^127\./
-                    ) ||
-                    (
-                        defined $ifaces{$_}{ipv6} &&
-                        $ifaces{$_}{ipv6_scope} !~ m/^(Link|Host)$/
-                    )
-                } keys %ifaces;
-
-                if( @up ) {
-                    push @$status, net_status( $ifaces{ $_ }, %opts )
-                        foreach @up;
-                } else {
-                    push @$status, net_status( $ifaces{ $_ }, %opts )
-                        foreach ( sort { $a cmp $b } keys %ifaces );
-                }
-            }
+    Net => {
+        dev          => undef,
+        iwconfig_cmd => '/sbin/iwconfig',
+        samples      => 5,
+        show_speed   => 0,
+        speed_format => '% 6.1f%sBs %s'
+        $iface       => {
+            show_speed => 0
         },
-        click => sub {
-            my ($i3status, $click) = @_;
+    }
 
-            $opts{$click->{instance}}{show_speed} = !$opts{$click->{instance}}{show_speed}
-                if( $click->{name} eq 'net' );
-        }
+=head1 OPTIONS
+
+=over
+
+=item dev
+
+Devices to display, can be a single string (eg. eth0), an array, or left undefined.
+
+When undefined, if there is a connected interface, that one will be shows, otherwise all will be displayed.
+
+=item iwconfig_cmd
+
+The iwconfig command to use to try to fetch wireless status. Defaults to 'iwconfig'.
+
+In some systems iwconfig will not display power levels or link quality unless it is
+run as root. An ugly workaround is to use 'sudo' to solve this.
+
+=item samples
+
+Number of samples to use to average the speed.
+
+=item show_speed
+
+Whether or not to display the network speed on the status.
+
+=item speed_format
+
+Format to use for the speed display. Takes 3 arguments: the speed as a float, the unit multiplier (eg. k, M), and the direction (up/down).
+
+=item $iface
+
+Configuration (show_speed, by now) can be configured per-interface.
+
+=back
+
+=head2 Click handlers
+
+You can display/hide the network speed clicking on the relevant interface status.
+
+=cut
+
+sub new {
+    my ($class, %opts) = @_;
+    my $self = $class->SUPER::new(
+        %opts
     );
+
+    return $self;
+}
+
+sub status {
+    my ($self) = @_;
+    my @status;
+
+    $self->parse_ifconfig;
+
+    if( exists $self->{dev} and $self->{dev} eq 'all' ) {
+        push @status, $self->net_status( $_ )
+            foreach( keys %{ $self->{ifaces} } );
+    }
+    elsif( defined $self->{dev} ) {
+        push @status,
+            map { $self->net_status( $_ ) }
+            ( ref $self->{dev} eq "ARRAY" ? @{ $self->{dev} } : $self->{dev} );
+    }
+    else {
+        my @up = sort { $a cmp $b } grep {
+            (
+                defined $self->{ifaces}{$_}{ipv4} &&
+                $self->{ifaces}{$_}{ipv4} !~ m/^127\./
+            ) ||
+            (
+                defined $self->{ifaces}{$_}{ipv6} &&
+                $self->{ifaces}{$_}{ipv6_scope} !~ m/^(Link|Host)$/
+            )
+        } keys %{ $self->{ifaces} };
+
+        if( @up ) {
+            push @status, $self->net_status( $_ )
+                foreach @up;
+        } else {
+            push @status, $self->net_status( $_ )
+                foreach ( sort { $a cmp $b } keys %{ $self->{ifaces} } );
+        }
+    }
+    
+    return @status;
+}
+
+sub click {
+    my ($self, $click) = @_;
+
+    $self->{$click->{instance}}{show_speed} = !$self->{$click->{instance}}{show_speed};
 }
 
 our @UNITS = (' ', qw/ k M G T P /);
@@ -73,14 +127,14 @@ sub human_speed {
     my $delta = $last_sample->{$direction} - $first_sample->{$direction};
     $delta /= tv_interval( $first_sample->{time}, $last_sample->{time} );
 
-    my $exp = 0;
-    do { $delta /= 1024; $exp++ } while( $delta > 1000 );
+    my $exp = int( log($delta||1) / log(1024) );
 
-    return sprintf( $format // '% 6.1f%sBs %s', $delta, $UNITS[$exp], $direction );
+    return sprintf( $format // '% 6.1f%sBs %s', $delta/(1<<(10*$exp)), $UNITS[$exp], $direction );
 }
 
 sub net_status {
-    my ($iface, %opts) = @_;
+    my ($self, $if_name) = @_;
+    my $iface = $self->{ifaces}{$if_name};
     my $addr = $iface->{ipv4} // $iface->{ipv6};
     my $up = $iface->{flags} =~ m#RUNNING#;
     my @status = ();
@@ -92,12 +146,12 @@ sub net_status {
         full_text => $iface->{name}.': '.( $addr ? $addr : '-' ),
     };
 
-    my $counts = $speed_samples{$iface->{name}};
-    if( ($opts{show_speed} || $opts{$iface->{name}}{show_speed}) && $counts && @$counts > 1 && $up ) {
+    my $counts = $self->{$iface->{name}}{speed_samples};
+    if( ($self->{show_speed} || $self->{$iface->{name}}{show_speed}) && $counts && @$counts > 1 && $up ) {
         $s->{full_text} .= ' | '. 
-            human_speed( $counts->[-1], $counts->[0], 'D', $opts{speed_format} )
+            human_speed( $counts->[-1], $counts->[0], 'D', $self->{speed_format} )
             . ' / ' .
-            human_speed( $counts->[-1], $counts->[0], 'U', $opts{speed_format} )
+            human_speed( $counts->[-1], $counts->[0], 'U', $self->{speed_format} )
     }
 
     push @status, $s;
@@ -145,23 +199,35 @@ my @IWSCAN = (
 );
 
 sub parse_ifconfig {
-    my %opts = @_;
-    my %ifaces = ();
+    my ($self) = @_;
 
-    scan_ifwconfig_output('/sbin/ifconfig -a', \%ifaces, @IFSCAN);
-    scan_ifwconfig_output( ($opts{iwconfig_cmd} // '/sbin/iwconfig').' 2>/dev/null', \%ifaces, @IWSCAN);
+    my $ifaces = $self->{ifaces} = {};
 
-    return %ifaces;
+    $self->scan_ifwconfig_output('/sbin/ifconfig -a', @IFSCAN);
+    $self->scan_ifwconfig_output( ($self->{iwconfig_cmd} // '/sbin/iwconfig').' 2>/dev/null', @IWSCAN);
+
+    my $last_check = [gettimeofday];
+    foreach( keys %$ifaces ) {
+        next if $_ eq 'lo';
+        my $counts = $self->{$_}{speed_samples} //= [];
+        push @$counts, {
+            D => $ifaces->{$_}{rx_bytes},
+            U => $ifaces->{$_}{tx_bytes},
+            time => $last_check
+        };
+        shift @$counts if @$counts > ($self->{samples} // 5);
+    }
+
 }
 
 sub scan_ifwconfig_output {
-    my ($command, $output, @patterns) = @_;
+    my ($self, $command, @patterns) = @_;
 
     foreach my $ifchunk ( split "\n\n", `$command` ) {
         my ($name) = $ifchunk =~ /^(\w+)\s/
             or next;
 
-        my $if = $output->{$name} //= { name => $name };
+        my $if = $self->{ifaces}{$name} //= { name => $name };
 
         foreach my $pat ( @patterns ) {
             @$if{ keys %+ } = values %+

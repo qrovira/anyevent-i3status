@@ -1,5 +1,7 @@
 package AnyEvent::I3Status::Plugin::Clock;
 
+use parent 'AnyEvent::I3Status::Plugin';
+
 use 5.014;
 use strict;
 use warnings;
@@ -7,31 +9,64 @@ use utf8;
 
 use POSIX qw(strftime);
 
-sub register {
-    my ($class, $i3status, %opts) = @_;
+=head1 NAME
 
-    my $long_format = $opts{long_format} // "%Y-%m-%d %H:%M:%S";
-    my $short_format = $opts{short_format} // "%H:%M:%S";
-    my $long = 0;
+AnyEvent::I3Status::Plugin::Clock - Display date and time
 
-    $i3status->reg_cb(
-        heartbeat => $opts{prio} => sub {
-            my ($i3status, $status) = @_;
+=head1 SYNOPSIS
 
-            push @$status, {
-                name => "clock",
-                full_text => "⌚ ".strftime( $long ? $long_format : $short_format, localtime ),
-                short_text => "⌚ ".strftime( $short_format, localtime ),
-            };
-        },
-        click => sub {
-            my ($i3status, $click) = @_;
+    Clock => {
+        long_format  => "%Y-%m-%d %H:%M:%S",
+        short_format => "%H:%M:%S",
+        long         => 0,
+    }
 
-            $long = !$long
-                if( $click->{name} eq 'clock' );
-        }
+=head1 OPTIONS
+
+=over
+
+=item long_format
+
+=item short_format
+
+=item long
+
+Starting long or short date format
+
+=back
+
+=head2 Click handlers
+
+You can switch between long and short format clicking on the status message.
+
+=cut
+
+sub new {
+    my ($class, %opts) = @_;
+    my $self = $class->SUPER::new(
+        long_format  => "%Y-%m-%d %H:%M:%S",
+        short_format => "%H:%M:%S",
+        long         => 0,
+        %opts
     );
 
+    return $self;
+}
+
+sub status {
+    my ($self) = @_;
+
+    return {
+        name => "clock",
+        full_text => "⌚ ".strftime( $self->{long} ? $self->{long_format} : $self->{short_format}, localtime ),
+        short_text => "⌚ ".strftime( $self->{short_format}, localtime ),
+    };
+}
+
+sub click {
+    my ($self, $click) = @_;
+
+    $self->{long} = !$self->{long};
 }
 
 1;

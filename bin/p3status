@@ -22,8 +22,8 @@ $config = do $CONF // {}
 $config = { plugins => $config }
     if ref $config eq 'ARRAY';
 
-# Select ALL plugins unless we have some
-$config->{plugins} = [ AnyEvent::I3Status->plugins ]
+# Select some plugins if none were specified
+$config->{plugins} = [ qw/ Net Load Clock / ]
     unless $config->{plugins};
 
 # Create status handler

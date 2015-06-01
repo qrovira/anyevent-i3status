@@ -4,16 +4,15 @@ use 5.014;
 use strict;
 use warnings;
 
-use base 'Object::Event';
+use parent 'Object::Event';
 
-use Module::Pluggable require => 1;
 use AnyEvent;
 use AnyEvent::Handle;
 use JSON;
 
 =head1 NAME
 
-AnyEvent::I3Status - Generate a JSON stream for i3bar using plugins
+AnyEvent::I3Status - Status tool for i3bar
 
 =head1 VERSION
 
@@ -104,32 +103,13 @@ sub new {
 
     my $self = {
         interval => $options{interval} // 1,
+        servers  => [],
+        plugins  => [],
     };
-
-    $self->{output} = AnyEvent::Handle->new(
-        fh => $options{output} // \*STDOUT
-    );
-
-    $self->{input} = AnyEvent::Handle->new(
-        fh => $options{input} // \*STDIN,
-        on_read => sub {
-            shift->push_read( line => sub {
-                my ($h, $l) = @_;
-                return if $l eq '[';
-                $l =~ s#^,##;
-                my $j = decode_json $l;
-                $self->event( click => $j );
-                $self->_heartbeat;
-            } );
-        },
-        on_error => sub {
-            # Old i3wm which does not handle click events will shut stdin,
-            # causing unhandled exception and stopping the loop
-        }
-    );
 
     bless $self, ref($class) || $class;
 
+    $self->_load_servers( $options{servers} // [] );
     $self->_load_plugins( $options{plugins} // [] );
 
     # Set up start/stop signals on USR1.. we might not want to get a TERM/CONT
@@ -142,17 +122,6 @@ sub new {
         cb     => sub { $self->_setup_heartbeat; }
     );
 
-    # Print initialization of the i3bar JSON stream
-    $self->{output}->push_write(
-        json => {
-            version => 1,
-            click_events => JSON::true,
-#            stop_signal => 10, # We want to stop via SIGUSR1
-#            cont_signal => 12  # And resume via SIGUSR2
-        }
-    );
-    $self->{output}->push_write( "\012[\012" );
-
     # Finally, start things up!
     $self->_setup_heartbeat;
 
@@ -164,30 +133,56 @@ sub new {
 # Privates
 #
 
-
-# Ugly way to be able to address plugins by last module name part, also
-# using lowercase.. :/
-our %PLUGINS = map {
-    reverse(/^(.+::([^:]+))$/),
-    $_     => $_,
-    lc($2) => $_,
-} __PACKAGE__->plugins;
-
 sub _load_plugins {
     my ($self, $plugins) = @_;
 
-    my $i = 0;
-    while( my $plugin = shift @$plugins ) {
+    my $nplugins = 0;
+    while( my $class = shift @$plugins ) {
+        my $fullclass =  __PACKAGE__."::Plugin::$class";
         my $opts = ref($plugins->[0]) ? shift @$plugins : {};
 
-        if( exists $PLUGINS{$plugin} ) {
-            $PLUGINS{$plugin}->register( $self, prio => 100 - $i++, %$opts );
-        }
-        elsif( ref $opts eq 'CODE' ) {
-            $self->reg_cb( heartbeat => (100 - $i++) => $opts );
-        }
-    }
+        eval("use $fullclass; 1;")
+            or warn "Cannot load plugin $class: $@";
 
+        my $plugin = $fullclass->new(
+            instance => ++$nplugins,
+            %$opts
+        );
+        push @{ $self->{plugins} }, $plugin;
+    }
+}
+
+
+sub _load_servers {
+    my ($self, $servers) = @_;
+
+    $servers = [ 'Local' ]
+        unless $servers && @$servers;
+
+    while( my $class = shift @$servers ) {
+        my $fullclass = __PACKAGE__."::Server::$class";
+        my $opts = ref($servers->[0]) ? shift @$servers : {};
+
+        eval("use $fullclass; 1;")
+            or die "Cannot load server $class: $@";
+
+        my $server = $fullclass->new( %$opts );
+        $server->reg_cb(
+            click => sub {
+                my ($server, $click) = @_;
+                my ($instance, $sub) = split '#', $click->{instance}, 2;
+
+                foreach my $plugin (@{ $self->{plugins} }) {
+                    next unless $plugin->{instance} eq $instance;
+                    $plugin->click( { %$click, instance => $sub }, $server );
+                }
+
+                $self->_heartbeat;
+            }
+        );
+
+        push @{ $self->{servers} }, $server;
+    }
 }
 
 # Enable the heartbeat (for init and stop/resume)
@@ -204,14 +199,20 @@ sub _setup_heartbeat {
 
 sub _heartbeat {
     my $self = shift;
-    my $status = [];
 
-    $self->event('heartbeat', $status);
+    my @status;
 
-    # Write status line to stdout
-    $self->{output}->push_write(",") unless $self->{num_statuses}++ == 0;
-    $self->{output}->push_write( json => $status );
-    $self->{output}->push_write("\012");
+    foreach my $plugin (@{ $self->{plugins} }) {
+        push @status, map {
+            {
+                %$_,
+                instance => $plugin->{instance} . ($_->{instance} ? "#$_->{instance}" : '')
+            }
+        } $plugin->status;
+    }
+
+    $_->status_update( @status )
+        foreach ( @{ $self->{servers} } );
 }
 
 
@@ -229,6 +230,67 @@ providing ad-hoc plugins directly on the configuration:
         myplug => sub { push @$_[1], { full_text => time }; }
     ]
 
+=head1 PLUGINS
+
+There is a default set of plugins available, each one being a worse example
+of broken hacks than the previous. Having said so, here is the list of
+supported status plugins:
+
+=head2 L<Battery|AnyEvent::I3Status::Plugin::Battery>
+
+Provides information about battery levels and times.
+
+=head2 L<Clock|AnyEvent::I3Status::Plugin::Clock>
+
+Provides date/time information.
+
+=head2 L<Disk|AnyEvent::I3Status::Plugin::Disk>
+
+Provides information about used space on a partition.
+
+=head2 L<File|AnyEvent::I3Status::Plugin::File>
+
+Check if a file exists.
+
+This can be used, for example, to check for ssh's ControlMaster sockets.
+
+=head2 L<Load|AnyEvent::I3Status::Plugin::Load>
+
+Display the average (1m/5m/15m) load values for the system.
+
+=head2 L<Net|AnyEvent::I3Status::Plugin::Net>
+
+Horrible hack thart tries to parse the output of C<ifconfig> and C<iwconfig>,
+and naively scans for some relevant information, makes lots of broken
+assumptions, and finally puts togheter potentially misleading information
+about your network status.
+
+=head2 L<PidFile|AnyEvent::I3Status::Plugin::PidFile>
+
+Check if a process is running.
+
+Be aware that the check for the process is done by checking if we can signal
+the process, which usually means we either own it, or we are root.
+
+=head2 L<Temperature|AnyEvent::I3Status::Plugin::Temperature>
+
+Displays temperatures from the C<sensors> command.
+
+It will automatically detect high/max values from the command output and
+use red color and urgency if it detects warm conditions.
+
+=head2 L<WebSocket|AnyEvent::I3Status::Plugin::WebSocket>
+
+Connect to a remote I3Status process which runs a WebSocket server, and
+display it's statuses.
+
+Click events are proxied to the remote process as well.
+
+=head2 Make your own!
+
+You can also create your own plugins using a very simple interface defined
+by L<AnyEvent::I3Status::Plugin> (doc comes with an example plugin).
+
 =head1 TODO
 
 =over 4
@@ -238,8 +300,6 @@ providing ad-hoc plugins directly on the configuration:
 =item Support multi-bar / multi-handler setups and provide example using mkfifo
 
 =item Allow plugins to do status update bursts (e.g: cache statuses, change only 1 via own timer)
-
-=item Turn plugins into less horrible messes
 
 =item Plugin: add sys monitor (or extend 'load' to allow free mem, i/o load, etc.)
 
