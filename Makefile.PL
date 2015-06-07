@@ -27,6 +27,7 @@ WriteMakefile(
         'Linux::Sysfs'      => '0.03',
         'Object::Event'     => '1.23',
         'JSON'              => '2.90',
+        'X11::IdleTime'     => '0.08',
     },
     EXE_FILES => [ 'bin/p3status' ],
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
