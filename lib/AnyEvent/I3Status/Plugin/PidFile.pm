@@ -1,52 +1,77 @@
 package AnyEvent::I3Status::Plugin::PidFile;
 
+use parent 'AnyEvent::I3Status::Plugin';
+
 use 5.014;
 use strict;
 use warnings;
 
-sub register {
-    my ($class, $i3status, %opts) = @_;
+=head1 NAME
 
-    my $path = $opts{path} // return;
-    my $ok_text = $opts{ok_text} // $path;
-    my $err_text = $opts{err_text} // $opts{ok_text};
+AnyEvent::I3Status::Plugin::PidFile - Display status of a process via it's pid file
 
-    $i3status->reg_cb(
-        heartbeat => $opts{prio} => sub {
-            my ($i3status, $status) = @_;
+=head1 SYNOPSIS
 
-            my $s = {
-                name => "pidfile",
-                instance => $path,
-                full_text => $err_text,
-                color => $opts{err_color} // '#ff0000',
-            };
+    Pidfile => {
+        path    => "/var/run/apache2.pid",
+        ok_text => "Apache OK",
+    }
 
+=head1 OPTIONS
 
-            if( open my $fh, '<', $path ) {
+=over
 
-                my $pid = <$fh>;
-                chomp $pid;
+=item path
 
-                if( $pid &&  $pid =~ m#^\d+$# ) {
+Path to the pid file
 
-                    if( kill 0, $pid ) {
+=item ok_text / err_text
 
-                        $s->{full_text} = $ok_text;
+Text to display when the file is found / not found. The err_text defaults to be the same as ok_text.
 
-                        delete $s->{color};
-                        $s->{color} = $opts{ok_color}
-                            if $opts{ok_color};
-                    }
-                }
-            }
+=item ok_color / err_color
 
+Colors to use when the file is found / not found.
 
-            push @$status, $s
-                if length $s->{full_text};
-        },
+=back
+
+=cut
+
+sub new {
+    my ($class, %opts) = @_;
+    my $self = $class->SUPER::new(
+        ok_text  => $opts{path},
+        ok_text  => $opts{ok_text} // $opts{path},
+        %opts
     );
 
+    return $self;
+}
+
+sub status {
+    my ($self) = @_;
+
+    if( open my $fh, '<', $self->{path} ) {
+        my $pid = <$fh>;
+        chomp $pid;
+
+        if( $pid &&  $pid =~ m#^\d+$# && kill(0, $pid) ) {
+            return {
+                name => "pidfile",
+                instance => $self->{path},
+                full_text => $self->{ok_text},
+                color => $self->{ok_color} // '#00ff00',
+            };
+        }
+    }
+
+
+    return {
+        name => "pidfile",
+        instance => $self->{path},
+        full_text => $self->{err_text},
+        color => $self->{err_color} // '#00ff00',
+    };
 }
 
 1;
