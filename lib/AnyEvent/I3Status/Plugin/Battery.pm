@@ -168,7 +168,7 @@ sub _sources_sysfs {
         }
         elsif( $type eq 'Mains' ) {
             push @sources, {
-                type => "battery",
+                type => "main",
                 status => attrval($dev, 'online')
             };
         }
@@ -180,7 +180,7 @@ sub _sources_sysfs {
 sub click {
     my ($self, $click) = @_;
 
-    $self->{long} = !$self->{long};
+    $self->{long}{$click->{instance}} = !$self->{long}{$click->{instance}};
 }
 
 # wtf.. i guess this makes more sense if we were to keep attrs around
