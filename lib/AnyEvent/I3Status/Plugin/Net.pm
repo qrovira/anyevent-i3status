@@ -206,6 +206,8 @@ sub parse_ifconfig {
     $self->scan_ifwconfig_output('/sbin/ifconfig -a', @IFSCAN);
     $self->scan_ifwconfig_output( ($self->{iwconfig_cmd} // '/sbin/iwconfig').' 2>/dev/null', @IWSCAN);
 
+    delete $ifaces->{lo};
+
     my $last_check = [gettimeofday];
     foreach( keys %$ifaces ) {
         next if $_ eq 'lo';
