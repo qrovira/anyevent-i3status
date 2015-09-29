@@ -58,7 +58,8 @@ Color to use as background for the i3lock command
 
 =head2 Click handlers
 
-You can click on the status to disable autolock
+Right click on the status will lock the screen, and left click will disable
+the auto-lock.
 
 =cut
 
