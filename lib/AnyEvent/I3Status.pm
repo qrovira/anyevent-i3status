@@ -10,66 +10,80 @@ use AnyEvent;
 use AnyEvent::Handle;
 use JSON;
 
+our $VERSION = '0.02';
+
 =head1 NAME
 
-AnyEvent::I3Status - Status tool for i3bar
-
-=head1 VERSION
-
-Version 0.01
-
-=cut
-
-our $VERSION = '0.01';
+AnyEvent::I3Status - Generate statuses for i3-wm's awesome i3bar
 
 =head1 SYNOPSIS
 
-This module bundles a simple dummy script ready to be used for i3bar
-with the current set of plugins.
+L<AnyEvent::I3Status> is an alternative to F<i3status> built in Perl and using
+L<AnyEvent>. It bundles most common plugins (eg. network and disk status, clocks,
+battery, etc.), but also provides a few powerful features like the ability to
+use websockets to display remote statuses from other computers.
+
+It comes with a small script (F<p3status>) ready to be used with
+minimum configuration.
 
     $ p3status -c <config_file>
 
-If no config file is specified, ~/.p3status will be tried, and if that
-also fails, a default configuration with all available plugins with no
-options will be used.
+If no config file is specified, it will try to read F<~/.p3status>, and if that
+also fails, a default configuration with the default plugins will be used.
 
-Note that the tool will try to load the configuration via C<do(...)>, which
-must return a hash of options to use, including the plugin list:
+The configuration file will be evaluated as a Perl script, which should return either
+an array of plugins to be used, or a hash of options.
 
     # Example file ~/.p3status
-    [ 'apm', 'net', 'clock' ]
+    [ 'Battery', 'Net', 'Clock' ]
 
 
-    # Another example
+    # A more complete example
     {
+        # Refresh the status every 0.5 seconds
         interval => 0.5,
-        plugins  => [ qw/ apm net clock / ]
+        plugins  => [
+            'Net',
+            'Disk' => { path => '/', warn => '2G', hide_ok => 1 },
+            'Disk' => { path => '/home', warn => '2G', hide_ok => 1 },
+            'Load',
+            'Backlight' => { device => "intel_backlight" },
+            'Battery',
+            'Clock',
+            'ScreenLock',
+        ]
     }
 
-See L</CONFIG> below for some more examples, and how to use ad-hoc plugins.
 
-If you want to use this module from your own perl program:
+    # A dummy client that just pulls status via WebSocket plugin
+    [ WebSocket => { host => "10.0.0.100", port => 33333 } ]
 
-    use AnyEvent::I3Status;
 
-    AnyEvent::I3Status->new(
-        interval => 1,
-        plugins => [ qw/ net apm clock / ],
-        output => \*STDOUT, # We'll print the JSON there
-        input => \*STDIN    # We'll read click event JSON from there
-    );
+    # A server providing the statuses via WebSocket
+    {
+        servers => [
+            WebSocket => { host => "127.0.0.1", port => 33333 },
+        ],
+        plugins  => [
+            'Net',
+            'Load',
+        ]
+    }
 
-    AnyEvent::condvar->recv;
+The top-level options on the configuration are the same as the options accepted
+by C<new> below.
 
-=head1 SUBROUTINES/METHODS
+=head1 METHODS
+
+L<AnyEvent::I3Status> inherits all methods from L<Object::Event> and implements the following ones:
 
 =head2 new( %config )
 
 Create a new AnyEvent::I3Status handler.
 
-Options:
+B<Options:>
 
-=over 4
+=over
 
 =item interval
 
@@ -80,23 +94,18 @@ The interval, in seconds, on which the status heartbeat will be triggered.
 List of plugins to enable, optionally followed by a reference to the plugin
 options.
 
-See L<AnyEvent::I3Status::Plugins> for a list of available plugins.
+See L</PLUGINS> below for a list of available plugins.
 
-=item output
+=item servers
 
-File descriptor to write the status output to. Unless specified, C<STDOUT> will
-be used.
+List of servers to enable, optionally followed by a reference to the server
+options.
 
-=item input
-
-File descriptor to listen to for events coming from the i3wm. Unless specified,
-C<STDIN> will be used.
+See L</SERVERS> below for a list of available plugins.
 
 =back
 
 =cut
-
-
 
 sub new {
     my ($class, %options) = @_;
@@ -110,7 +119,7 @@ sub new {
     bless $self, ref($class) || $class;
 
     $self->_load_servers( $options{servers} // [] );
-    $self->_load_plugins( $options{plugins} // [] );
+    $self->_load_plugins( $options{plugins} // [ qw/ Net Disk Load Clock/ ] );
 
     # Set up start/stop signals on USR1.. we might not want to get a TERM/CONT
     $self->{sig_stop} = AnyEvent->signal(
@@ -216,80 +225,114 @@ sub _heartbeat {
 }
 
 
-
-=head1 CONFIG
-
-The config file is loaded via C<do(...)>, which means it gets executed as a
-perl script. While this is a bit stupid, it allows doing some fancy stuff, like
-providing ad-hoc plugins directly on the configuration:
-
-    # Ad-hoc plugin example:
-    [
-        'net',
-        'disk' => { path => '/' },
-        myplug => sub { push @$_[1], { full_text => time }; }
-    ]
-
 =head1 PLUGINS
 
 There is a default set of plugins available, each one being a worse example
 of broken hacks than the previous. Having said so, here is the list of
 supported status plugins:
 
-=head2 L<Battery|AnyEvent::I3Status::Plugin::Battery>
+=over
+
+=item L<Battery|AnyEvent::I3Status::Plugin::Battery>
 
 Provides information about battery levels and times.
 
-=head2 L<Clock|AnyEvent::I3Status::Plugin::Clock>
+=item L<Clock|AnyEvent::I3Status::Plugin::Clock>
 
 Provides date/time information.
 
-=head2 L<Disk|AnyEvent::I3Status::Plugin::Disk>
+=item L<Disk|AnyEvent::I3Status::Plugin::Disk>
 
 Provides information about used space on a partition.
 
-=head2 L<File|AnyEvent::I3Status::Plugin::File>
+=item L<File|AnyEvent::I3Status::Plugin::File>
 
 Check if a file exists.
 
 This can be used, for example, to check for ssh's ControlMaster sockets.
 
-=head2 L<Load|AnyEvent::I3Status::Plugin::Load>
+=item L<Load|AnyEvent::I3Status::Plugin::Load>
 
 Display the average (1m/5m/15m) load values for the system.
 
-=head2 L<Net|AnyEvent::I3Status::Plugin::Net>
+=item L<Net|AnyEvent::I3Status::Plugin::Net>
 
 Horrible hack thart tries to parse the output of C<ifconfig> and C<iwconfig>,
 and naively scans for some relevant information, makes lots of broken
 assumptions, and finally puts togheter potentially misleading information
 about your network status.
 
-=head2 L<PidFile|AnyEvent::I3Status::Plugin::PidFile>
+=item L<PidFile|AnyEvent::I3Status::Plugin::PidFile>
 
 Check if a process is running.
 
 Be aware that the check for the process is done by checking if we can signal
-the process, which usually means we either own it, or we are root.
+the process, which usually means we need to have the right permissions.
 
-=head2 L<Temperature|AnyEvent::I3Status::Plugin::Temperature>
+=item L<Temperature|AnyEvent::I3Status::Plugin::Temperature>
 
 Displays temperatures from the C<sensors> command.
 
 It will automatically detect high/max values from the command output and
 use red color and urgency if it detects warm conditions.
 
-=head2 L<WebSocket|AnyEvent::I3Status::Plugin::WebSocket>
+=item L<WebSocket|AnyEvent::I3Status::Plugin::WebSocket>
 
 Connect to a remote I3Status process which runs a WebSocket server, and
 display it's statuses.
 
 Click events are proxied to the remote process as well.
 
-=head2 Make your own!
+=item L<XRandR|AnyEvent::I3Status::Plugin::XRandR>
+
+Control the display settings via XRandR extension.
+
+Allows some simple auto-detect settings and rotation via click handlers on each detected output.
+
+=item Make your own!
 
 You can also create your own plugins using a very simple interface defined
 by L<AnyEvent::I3Status::Plugin> (doc comes with an example plugin).
+
+=back
+
+=head1 SERVERS
+
+I3Status supports different servers in order to report status and receive the click events.
+
+Most of the time, it is enough to use the Local server, meant for running F<p3status>
+directly from your F<~i3/config>. If you want to use remote statuses, or plugins which
+cannot run properly when executed from i3bar, you can use a the WebSocket server
+and the corresponding WebSocket plugin.
+
+=over
+
+=item L<Local|AnyEvent::I3Status::Server::Local>
+
+This is the default server, meant to interface directly with i3bar via STDIN/STDOUT.
+
+=item L<WebSocket|AnyEvent::I3Status::Server::WebSocket>
+
+This server module will listen for connections on a given host/port, and establish
+websocket connections. The format used is the same as the i3bar protocol (a JSON
+stream), and generally connected to by L<AnyEvent::I3Status::Plugin::WebSocket>.
+
+Options:
+
+=over
+
+=item host
+
+Address to listen to. Defaults to 127.0.0.1, but can be set to 0.0.0.0 to listen to
+external connections.
+
+=item port
+
+Port to listen to. Defaults to 22767.
+
+=back
+
+=back
 
 =head1 TODO
 
@@ -297,15 +340,9 @@ by L<AnyEvent::I3Status::Plugin> (doc comes with an example plugin).
 
 =item Tests, tests, tests
 
-=item Support multi-bar / multi-handler setups and provide example using mkfifo
-
-=item Allow plugins to do status update bursts (e.g: cache statuses, change only 1 via own timer)
-
 =item Plugin: add sys monitor (or extend 'load' to allow free mem, i/o load, etc.)
 
 =item Plugin: add network context checker (e.g: detect LANs like work/home/etc.)
-
-=item Plugin: add RandR plugin, with click handling to switch modes
 
 =back
 
@@ -313,32 +350,11 @@ by L<AnyEvent::I3Status::Plugin> (doc comes with an example plugin).
 
 Quim Rovira, C<< <met at cpan.org> >>
 
-=head1 BUGS
-
-Please report any bugs or feature requests to C<bug-anyevent-i3status at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=AnyEvent-I3Status>.  I will be notified, and then you'll
-automatically be notified of progress on your bug as I make changes.
-
 =head1 SUPPORT
 
-You can find documentation for this module with the perldoc command.
-
-    perldoc AnyEvent::I3Status
-
-
-You can also look for information at:
-
-=over 4
-
-=item * RT: CPAN's request tracker (report bugs here)
-
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=AnyEvent-I3Status>
-
-=item * GitHub repository
+You can look for information on the GitHub repository:
 
 L<http://github.com/qrovira/anyevent-i3status/>
-
-=back
 
 =head1 LICENSE AND COPYRIGHT
 

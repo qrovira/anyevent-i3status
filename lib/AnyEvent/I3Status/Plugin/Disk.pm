@@ -50,6 +50,7 @@ sub new {
         hide_ok => 0,
         path => $opts{path} // '/',
         warn => $opts{warn} // '10G',
+        icon => "🖪",
         %opts
     );
 
@@ -62,7 +63,7 @@ sub status {
     my $s = {
         name => "disk",
         instance => $path,
-        full_text => "$path ?"
+        full_text => $self->_sprintf("$path ?")
     };
 
     my $df = df($path)
@@ -72,7 +73,7 @@ sub status {
     my $hfree = _s2h( $free );
     my $warn = _h2s( $self->{warn} );
 
-    $s->{full_text} = "$path $hfree";
+    $s->{full_text} = $self->_sprintf("$path $hfree");
 
     if( $free < $warn ) {
         $s->{color} = '#ff0000';

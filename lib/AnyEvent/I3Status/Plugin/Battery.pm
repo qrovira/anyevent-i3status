@@ -60,6 +60,7 @@ sub new {
             warning => '#ffa500',
             critical => [ '#ff0000', '#ffff00' ],
         },
+        icon => "⚡",
         %opts
     );
 
@@ -93,14 +94,16 @@ sub status {
             {
                 name => "battery",
                 instance => "AC",
-                full_text => "⚡ AC"
+                full_text => $self->_sprintf("AC")
             } :
         $_->{type} eq 'battery' ?
             {
                 name => "battery",
                 instance => $_->{name},
-                full_text => "⚡ $_->{charge}\%" .
+                full_text => $self->_sprintf(
+                    "$_->{charge}%%%s",
                     (($self->{long}{$_->{name}} // $self->{long}) ? " ($_->{left} left)" : ""),
+                ),
                 (
                     $_->{charge} < 10 ? $self->_color('critical') :
                     $_->{charge} < 25 ? $self->_color('warning') :

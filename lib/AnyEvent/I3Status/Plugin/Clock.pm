@@ -47,6 +47,7 @@ sub new {
         long_format  => "%Y-%m-%d %H:%M:%S",
         short_format => "%H:%M:%S",
         long         => 0,
+        icon         => "⌚",
         %opts
     );
 
@@ -58,8 +59,8 @@ sub status {
 
     return {
         name => "clock",
-        full_text => "⌚ ".strftime( $self->{long} ? $self->{long_format} : $self->{short_format}, localtime ),
-        short_text => "⌚ ".strftime( $self->{short_format}, localtime ),
+        full_text => $self->_sprintf(strftime( $self->{long} ? $self->{long_format} : $self->{short_format}, localtime )),
+        short_text => $self->_sprintf(strftime( $self->{short_format}, localtime )),
     };
 }
 

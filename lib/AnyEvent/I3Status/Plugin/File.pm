@@ -63,7 +63,7 @@ sub status {
     my $s = {
         name      => "file",
         instance  => $path,
-        full_text => $self->{err_text},
+        full_text => $self->_sprintf($self->{err_text}),
         color     => $self->{err_color},
     };
 
@@ -71,7 +71,7 @@ sub status {
     my @stat = $found ? stat $found : ();
 
     if( @stat ) {
-        $s->{full_text} = $self->{ok_text};
+        $s->{full_text} = $self->_sprintf($self->{ok_text});
         $s->{color} = $self->{ok_color};
     }
 

@@ -40,6 +40,7 @@ sub new {
     my ($class, %opts) = @_;
     my $self = $class->SUPER::new(
         full => 0,
+        icon => "🔥",
         %opts
     );
 
@@ -52,7 +53,7 @@ sub status {
 
     return {
         name => "load",
-        full_text => "☸ ". ($self->{full} ? join ' ', @loads : $loads[0]),
+        full_text => $self->_sprintf( ($self->{full} ? join ' ', @loads : $loads[0]) ),
     };
 }
 

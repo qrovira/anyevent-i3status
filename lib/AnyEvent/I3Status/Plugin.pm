@@ -66,7 +66,9 @@ Hello Kitty is a trademark of Sanrio.
 sub new {
     my ($proto, %opts) = @_;
 
-    my $self = { %opts };
+    my $self = {
+        %opts
+    };
 
     bless( $self, ref($proto) || $proto );
 
@@ -81,6 +83,15 @@ sub status {
 
 sub click {
     my ($self) = @_;
+}
+
+#
+# Wrapper around sprintf that also includes whichever icon was defined
+#
+sub _sprintf {
+    my ($self, $status, @args) = @_;
+
+    return sprintf( "%s$status", $self->{icon} // '', @args );
 }
 
 1;

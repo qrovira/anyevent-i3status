@@ -42,6 +42,7 @@ sub new {
     my ($class, %opts) = @_;
     my $self = $class->SUPER::new(
         device  => "all",
+        icon => "💡",
         %opts
     );
 
@@ -63,12 +64,11 @@ sub status {
     foreach my $backlight ( values %{ $self->{backlights} } ) {
         my ($current, $max) = map { attrval($backlight,$_) }
             qw/actual_brightness max_brightness/;
-        my $percent = sprintf( "%.1f", 100 * $current / ( $max || 1 ) );
 
         push @status, {
             name => "backlight",
             instance => $backlight->name,
-            full_text => "☀ $percent",
+            full_text => $self->_sprintf("%.1f", 100 * $current / ( $max || 1 )),
         }
 
     }

@@ -71,6 +71,7 @@ sub new {
         autolock  => 1,
         image     => undef,
         color     => '000000',
+        icon      => '🔒',
         %opts
     );
 
@@ -86,8 +87,8 @@ sub status {
 
     return {
         name => "screenlock",
-        full_text => ($self->{countdown} ? sprintf("⌛ %03d", $self->{time_left}) : "⌛"),
-        short_text => "⌛",
+        full_text => ($self->{countdown} ? $self->_sprintf("%03d", $self->{time_left}) : $self->_sprintf("")),
+        short_text => $self->_sprintf(""),
         color => (
             $self->{autolock} ?
                 ($self->{time_left} < 20) ?

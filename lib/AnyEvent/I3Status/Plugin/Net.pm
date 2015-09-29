@@ -69,6 +69,7 @@ You can display/hide the network speed clicking on the relevant interface status
 sub new {
     my ($class, %opts) = @_;
     my $self = $class->SUPER::new(
+        icon => "",
         %opts
     );
 
@@ -164,7 +165,7 @@ sub net_status {
             name => "net",
             instance => $iface->{name}."/wireless",
             color => ( $iface->{essid} ? '#00ff00' : '#ff0000' ),
-            full_text => 'W: '.(
+            full_text => 'W:'.(
                 $iface->{essid} ?
                     $iface->{essid} .
                     ( $quality ? ' ('.sprintf('%03d',$quality).'%)' : '' ) :
