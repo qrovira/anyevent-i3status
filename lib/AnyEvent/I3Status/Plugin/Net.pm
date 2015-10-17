@@ -183,6 +183,7 @@ sub net_status {
 #
 
 my @IFSCAN = (
+    # Common debian format
     qr/Link encap:Ethernet\s+HWaddr (?<mac>[a-f0-9:]+)/,
     qr/inet addr:\s*(?<ipv4>[0-9\.]+)/,
     qr/inet addr.*Bcast:(?<ipv4_bcast>[0-9\.]+)/,
@@ -190,6 +191,12 @@ my @IFSCAN = (
     qr/inet6\s+addr:\s*(?<ipv6>[0-9a-f:]+)\/(?<ipv6_mask>\d+) Scope:(?<ipv6_scope>\w+)/,
     qr/RX\sbytes:\s*(?<rx_bytes>\d+) .* TX\sbytes:\s*(?<tx_bytes>\d+)/,
     qr/(?<flags>(?:\w+\s+)*)\s*MTU:(?<mtu>\d+)\s+Metric:/,
+    # New debian format
+    qr/inet\s*(?<ipv4>[0-9\.]+)\s+netmask\s+(?<ipv4_mask>[0-9\.]+)/,
+    qr/inet6\s+(?<ipv6>[0-9a-f:]+)\s+prefixlen\s+(?<ipv6_mask>\d+)\s+scopeid\s+(?<ipv6_scope>[0-9x<>\w+])/,
+    qr/RX packets (?<rx_packets>\d+)\s+bytes\s+(?<rx_bytes>\d+)/,
+    qr/TX packets (?<tx_packets>\d+)\s+bytes\s+(?<tx_bytes>\d+)/,
+    qr/flags=\d+<(?<flags>(?:\w+(?:,\w+))*)>\s+mtu\s+(?<mtu>\d+)/,
 );
 my @IWSCAN = (
     qr/ESSID:"(?<essid>[^"]+)"/,
@@ -227,17 +234,16 @@ sub scan_ifwconfig_output {
     my ($self, $command, @patterns) = @_;
 
     foreach my $ifchunk ( split "\n\n", `$command` ) {
-        my ($name) = $ifchunk =~ /^(\w+)\s/
+        my ($name, $first) = $ifchunk =~ /^(\w+)[:\s]+(.*)/
             or next;
 
         my $if = $self->{ifaces}{$name} //= { name => $name };
 
-        foreach my $pat ( @patterns ) {
+        foreach my $pat ( $first, @patterns ) {
             @$if{ keys %+ } = values %+
                 if $ifchunk =~ $pat;
         }
     }
-
 }
 
 
