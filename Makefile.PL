@@ -28,6 +28,8 @@ WriteMakefile(
         'Object::Event'     => '1.23',
         'JSON'              => '2.90',
         'X11::IdleTime'     => '0.08',
+        'AnyEvent::WebSocket::Server' => '0.05',
+        'AnyEvent::WebSocket::Client' => '0.30',
     },
     EXE_FILES => [ 'bin/p3status' ],
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
