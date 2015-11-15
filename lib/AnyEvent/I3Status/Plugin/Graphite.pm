@@ -20,16 +20,55 @@ AnyEvent::I3Status::Plugin::Graphite - Display information from a graphite serve
 
     Graphite => {
         host => "http://my.graphite.host/",
-        socks => "http://my.socks.proxy.host:port/",
+        target => "path.of.graphite.metric",
+        since => "-2minutes",
+        filter => "average",
+        min => "10",
+        max => "1000",
+        format => "%s:%.1f",
+
+        # optionally, a socks proxy
+        socks => "socks5://my.socks.proxy.host:port/",
     }
 
 =head1 OPTIONS
 
 =over
 
-=item full
+=item host
 
-Display 1m/5m/15m averages, or only the 1m average.
+Hostname where graphite can be reached
+
+=item target
+
+Target metric to fetch fromg graphite.
+
+It should return a single dataset. Please use multiple instances of this
+plugin if you need multiple datasets.
+
+=item since
+
+Time specification to fetch data since. Defaults to "-2minutes".
+
+=item filter
+
+How to process the received dataset. Defaults to "average", which does an
+average over the non-null values, but you can provide a callback that
+recives an array of metrics ([timestamp, value]), and returns a single value.
+
+=item min, max
+
+Thresholds to check, if defined. The alarm bit will be set so i3bar can nag
+about metrics out of whack.
+
+=item format
+
+Format pattern (sprintf style) for the status text. Receives the target label
+and the value returned by the filter.
+
+=item socks
+
+Socks proxy configuration to use with AnyEvent::HTTP::Socks
 
 =back
 
@@ -49,7 +88,7 @@ my %FILTERS = (
 sub new {
     my ($class, %opts) = @_;
     my $self = $class->SUPER::new(
-        icon => "🔥",
+        icon => "",
         since => '-2minutes',
         refresh => 5,
         filter => "average",
@@ -97,7 +136,8 @@ sub update_graphite {
                 my ($metric) = eval { @{ decode_json $json }; }
                     or warn "Could not deserialzie graphite JSON: ".($@ // 'Unknown error');
                 
-                my $value = $FILTERS{ $self->{filter} }->( @{ $metric->{datapoints} } );
+                my $filter = ref( $self->{filter} ) ? $self->{filter} : $FILTERS{ $self->{filter} };
+                my $value = $filter->( @{ $metric->{datapoints} } );
                 my $alarm =
                     !defined($value) ||
                     defined($self->{min}) && ($value < $self->{min}) ||
