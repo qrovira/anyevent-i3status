@@ -92,7 +92,7 @@ sub status {
             name => "xrandr",
             instance => "global",
             full_text => $self->_sprintf(join " ", sort { $a cmp $b } map { $_->{display} } @connected),
-            short_text => "🖵 ",
+            short_text => "🖵",
         };
     } elsif( $self->{mode} eq "connected" ) {
         return map +{
