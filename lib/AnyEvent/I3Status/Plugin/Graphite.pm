@@ -81,7 +81,17 @@ You can switch between long and short format clicking on the status message.
 my %FILTERS = (
     average => sub {
         my @data = grep { defined $_->[0] } @_;
-        return sum( map $_->[0], @data) / @data;
+        return 0 unless @data;
+        return sum( map $_->[0], @data) / (@data || 1);
+    },
+    ewa => sub {
+        my @data = grep { defined $_->[0] } @_;
+        return 0 unless @data;
+        my $alpha = 2 / ( 1 + @data );
+        my $result = sum( map $_->[0], @data[0..int($#data/2)] ) / (int($#data/2)||1);
+        $result = $result + $alpha * ( $_->[0] - $result )
+            foreach ( reverse @data );
+        return $result;
     },
 );
  
