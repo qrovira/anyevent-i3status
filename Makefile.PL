@@ -19,7 +19,7 @@ WriteMakefile(
     },
     PREREQ_PM => {
         'AnyEvent'                    => '7.07',
-        'AnyEvent::HTTP'              => '2.22',
+        'AnyEvent::HTTP'              => '2.21',
         'AnyEvent::HTTP::Socks'       => '0.05',
         'JSON::XS'                    => '3.01',
         'Sys::CpuLoad'                => '0.02',
@@ -31,7 +31,7 @@ WriteMakefile(
         'JSON'                        => '2.90',
         'X11::IdleTime'               => '0.08',
         'AnyEvent::WebSocket::Server' => '0.05',
-        'AnyEvent::WebSocket::Client' => '0.30',
+        'AnyEvent::WebSocket::Client' => '0.27',
     },
     EXE_FILES => [ 'bin/p3status' ],
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
