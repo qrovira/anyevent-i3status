@@ -145,18 +145,22 @@ sub update_graphite {
             if( $headers->{Status} eq "200" ) {
                 my ($metric) = eval { @{ decode_json $json }; }
                     or warn "Could not deserialzie graphite JSON: ".($@ // 'Unknown error');
-                
-                my $filter = ref( $self->{filter} ) ? $self->{filter} : $FILTERS{ $self->{filter} };
-                my $value = $filter->( @{ $metric->{datapoints} } );
-                my $alarm =
-                    !defined($value) ||
-                    defined($self->{min}) && ($value < $self->{min}) ||
-                    defined($self->{max}) && ($value < $self->{max});
 
-                $self->set_status(
-                    [ $self->{format}, ( $self->{label} // $metric->{target} ), ($value // "undef") ],
-                    ( $alarm ? ( urgent => JSON::true ) : () )
-                );
+                if( $metric ) {
+                    my $filter = ref( $self->{filter} ) ? $self->{filter} : $FILTERS{ $self->{filter} };
+                    my $value = $filter->( @{ $metric->{datapoints} } );
+                    my $alarm =
+                        (!defined($value)) ||
+                        (defined($self->{min}) && ($value < $self->{min})) ||
+                        (defined($self->{max}) && ($value > $self->{max}));
+
+                    $self->set_status(
+                        [ $self->{format}, ( $self->{label} // $metric->{target} ), ($value // "undef") ],
+                        ( $alarm ? ( urgent => JSON::true ) : () )
+                    );
+                } else {
+                    $self->set_status( "Error" );
+                }
             } else {
                 $self->set_status( "Error" );
             }
