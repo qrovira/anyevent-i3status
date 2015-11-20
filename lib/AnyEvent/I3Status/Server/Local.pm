@@ -13,7 +13,7 @@ use JSON;
 sub new {
     my ($proto, %opts) = @_;
 
-    my $self = {};
+    my $self = { %opts };
 
     bless( $self, ref($proto) || $proto );
 
@@ -59,6 +59,16 @@ sub new {
 
 sub status_update {
     my ($self, @status) = @_;
+
+    # Optionally remove any short_statuses if needed
+    # (we need to copy as refs can be reused for other server)
+    if( $self->{no_short_status} ) {
+        @status = map {
+            my $copy = { %$_ };
+            delete $copy->{short_text} if $copy->{full_text};
+            $copy;
+        } @status;
+    }
 
     # Write status line to stdout
     $self->{output}->push_write(",") unless $self->{num_statuses}++ == 0;
