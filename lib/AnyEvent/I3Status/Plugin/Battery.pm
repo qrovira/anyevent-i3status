@@ -207,14 +207,14 @@ sub _color {
 
     return () unless $self->{colors}{$color};
 
-    return ( color => $self->{color}{$color} )
-        unless ref $self->{color}{$color};
+    return ( color => $self->{colors}{$color} )
+        unless ref $self->{colors}{$color};
 
     my $current = $self->{_color_flops}{$color} =
-        ( $self->{_color_flops}{$color} + 1 ) %
+        ( ($self->{_color_flops}{$color} // 0) + 1 ) %
         scalar( @{$self->{colors}{$color}} );
 
-    return ( color => $self->{color}{$color}[$current] );
+    return ( color => $self->{colors}{$color}[$current] );
 }
 
 1;
