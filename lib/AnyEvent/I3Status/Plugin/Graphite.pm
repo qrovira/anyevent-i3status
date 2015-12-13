@@ -88,9 +88,9 @@ my %FILTERS = (
         my @data = grep { defined $_->[0] } @_;
         return 0 unless @data;
         my $alpha = 2 / ( 1 + @data );
-        my $result = sum( map $_->[0], @data[0..int($#data/2)] ) / (int($#data/2)||1);
+        my $result = sum( map $_->[0], @data[0..int($#data/10)] ) / (int($#data/10)||1);
         $result = $result + $alpha * ( $_->[0] - $result )
-            foreach ( reverse @data );
+            foreach ( @data );
         return $result;
     },
 );
