@@ -18,10 +18,10 @@ AnyEvent::I3Status::Plugin::Net - Display status of the network
         dev          => undef,
         iwconfig_cmd => '/sbin/iwconfig',
         samples      => 5,
-        show_speed   => 0,
+        show_details => 0,
         speed_format => '% 6.1f%sBs %s'
         $iface       => {
-            show_speed => 0
+            show_details => 0
         },
     }
 
@@ -46,7 +46,7 @@ run as root. An ugly workaround is to use 'sudo' to solve this.
 
 Number of samples to use to average the speed.
 
-=item show_speed
+=item show_details
 
 Whether or not to display the network speed on the status.
 
@@ -56,7 +56,7 @@ Format to use for the speed display. Takes 3 arguments: the speed as a float, th
 
 =item $iface
 
-Configuration (show_speed, by now) can be configured per-interface.
+Configuration (show_details, by now) can be configured per-interface.
 
 =back
 
@@ -118,7 +118,7 @@ sub status {
 sub click {
     my ($self, $click) = @_;
 
-    $self->{$click->{instance}}{show_speed} = !$self->{$click->{instance}}{show_speed};
+    $self->{$click->{instance}}{show_details} = !$self->{$click->{instance}}{show_details};
 }
 
 our @UNITS = (' ', qw/ k M G T P /);
@@ -148,7 +148,7 @@ sub net_status {
     };
 
     my $counts = $self->{$iface->{name}}{speed_samples};
-    if( ($self->{show_speed} || $self->{$iface->{name}}{show_speed}) && $counts && @$counts > 1 && $up ) {
+    if( ($self->{show_details} || $self->{$iface->{name}}{show_details}) && $counts && @$counts > 1 && $up ) {
         $s->{full_text} .= ' | '. 
             human_speed( $counts->[-1], $counts->[0], 'D', $self->{speed_format} )
             . ' / ' .
@@ -167,7 +167,7 @@ sub net_status {
             color => ( $iface->{essid} ? '#00ff00' : '#ff0000' ),
             full_text => 'W:'.(
                 $iface->{essid} ?
-                    $iface->{essid} .
+                    ( ($self->{show_details} || $self->{$iface->{name}."/wireless"}{show_details}) ? $iface->{essid} : '') .
                     ( $quality ? ' ('.sprintf('%03d',$quality).'%)' : '' ) :
                     'offline'
             )
